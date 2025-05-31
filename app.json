@@ -23,7 +23,12 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#6366f1"
       },
-      "package": "com.princedubey1998.ExpenseZ"
+      "package": "com.princedubey1998.ExpenseZ",
+      "versionCode": 1,
+      "permissions": [],
+      "playStoreConfig": {
+        "storeUrl": "https://play.google.com/store/apps/details?id=com.princedubey1998.ExpenseZ"
+      }
     },
     "web": {
       "bundler": "metro",
@@ -37,6 +42,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0fe7bb60-1503-40e1-a0bd-c06d46e52321"
+      }
     }
   }
 }
