@@ -7,10 +7,21 @@ import { PlusJakartaSans_700Bold } from '@expo-google-fonts/plus-jakarta-sans';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { configureGoogleSignIn } from '@/config/google-signin';
 
 function RootLayoutContent() {
   const { isDark } = useTheme();
   useFrameworkReady();
+
+  useEffect(() => {
+    try {
+      configureGoogleSignIn();
+    } catch (e) {
+      // ignore config errors on platforms without Google services
+      // eslint-disable-next-line no-console
+      console.warn('Google Sign-In not configured:', e?.message || e);
+    }
+  }, []);
 
   const [fontsLoaded] = useFonts({
     'Inter-Regular': Inter_400Regular,

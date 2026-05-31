@@ -6,6 +6,8 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
+  profileImage?: string;
+  currency?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +33,7 @@ export interface AuthSlice {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   loadStoredCredentials: () => Promise<{ email: string; password: string } | null>;
   logout: () => Promise<void>;
   getCurrentUser: () => Promise<void>;
@@ -56,23 +59,38 @@ export interface AuthTokens {
 
 export interface Transaction {
   _id: string;
+  id?: string;
   user: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'cash_in' | 'cash_out' | 'investment' | 'loan';
+  source?: 'balance' | 'existing';
   category: string;
-  date: string;
+  title: string;
+  transactionDate: string;
+  date?: string;
   note: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface TransactionSummary {
-  totalIncome: number;
-  totalExpense: number;
-  balance: number;
-  categoryBreakdown: {
-    category: string;
+  cashIn: number;
+  cashOut: number;
+  investments: number;
+  loans?: number;
+  savings: number;
+  recentActivity: Array<{
+    id: string;
+    title: string;
     amount: number;
+    type: 'cash_in' | 'cash_out' | 'investment' | 'loan';
+    category: string;
+    transactionDate: string;
+    createdAt: string;
+  }>;
+  topCategories: {
+    category: string;
+    total: number;
   }[];
 }
 
@@ -92,12 +110,14 @@ export interface TransactionSlice {
   stats: UserStats | null;
   setTransactions: (transactions: Transaction[]) => void;
   fetchTransactions: (params?: {
-    type?: 'income' | 'expense';
+    type?: 'cash_in' | 'cash_out' | 'investment' | 'loan';
     page?: number;
     limit?: number;
     startDate?: string;
     endDate?: string;
     category?: string;
+    month?: number;
+    year?: number;
   }) => Promise<void>;
   fetchTransactionById: (id: string) => Promise<Transaction>;
   addTransaction: (transaction: Omit<Transaction, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => Promise<Transaction>;
@@ -108,19 +128,38 @@ export interface TransactionSlice {
 }
 
 export interface AnalyticsData {
+  month: number;
+  year: number;
+  categories: {
+    category: string;
+    total: number;
+  }[];
   monthlyStats: {
     month: string;
     income: number;
     expense: number;
+    investments?: number;
+    loans?: number;
     balance: number;
   }[];
   spendingByCategories: {
     category: string;
     total: number;
   }[];
+  dayOfWeekStats: {
+    day: string;
+    total: number;
+  }[];
+  weeklyStats: {
+    week: string;
+    total: number;
+  }[];
+  topTransactions: Transaction[];
   summary: {
     totalIncome: number;
     totalExpense: number;
+    totalInvestments?: number;
+    totalLoans?: number;
     balance: number;
   };
 }

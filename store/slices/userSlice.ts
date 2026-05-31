@@ -2,27 +2,22 @@ import { UserSlice, StoreSlice, User } from '../types';
 import api from '../api';
 
 export interface UserStats {
-  totals: {
-    income: number;
-    expense: number;
-    balance: number;
-  };
-  recentTransactions: Array<{
-    _id: string;
+  cashIn: number;
+  cashOut: number;
+  investments: number;
+  loans?: number;
+  savings: number;
+  recentActivity: Array<{
+    id: string;
+    title: string;
     amount: number;
-    type: 'income' | 'expense';
-    note: string;
-    date: string;
+    type: 'cash_in' | 'cash_out' | 'investment' | 'loan';
     category: string;
+    transactionDate: string;
+    createdAt: string;
   }>;
-  spendingByCategories: Array<{
-    _id: string;
-    name: string;
-    total: number;
-  }>;
-  incomeByCategories: Array<{
-    _id: string;
-    name: string;
+  topCategories: Array<{
+    category: string;
     total: number;
   }>;
 }
@@ -40,7 +35,9 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
   getUserAnalytics: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/api/users/analytics');
+      const response = await api.get('/api/analytics/monthly');
+      // Debug: log analytics payload so we can verify investments are present
+      console.debug('Fetched analytics:', response.data);
       set({ analytics: response.data.data, loading: false });
       return response.data.data;
     } catch (error: any) {
@@ -56,8 +53,8 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await api.put('/api/users/profile', data);
-      set({ user: response.data.user, loading: false });
-      return response.data.user;
+      set({ user: response.data.data, loading: false });
+      return response.data.data;
     } catch (error: any) {
       set({ 
         error: error?.response?.data?.message || 'Failed to update profile',
@@ -102,7 +99,7 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
 
     try {
       set({ loading: true, error: null });
-      const response = await api.get('/api/users/stats');
+      const response = await api.get('/api/dashboard');
       const newStats = response.data.data;
       
       if (JSON.stringify(get().stats) !== JSON.stringify(newStats)) {

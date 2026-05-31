@@ -1,7 +1,14 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const API_BASE_URL = 'https://expense-z-backend.vercel.app/';
+// Resolve a sensible default base URL for different runtimes:
+// - Honor explicit expo config extra or environment override when provided
+// - Use 10.0.2.2 for Android emulator (maps to host machine localhost)
+// - Fallback to localhost for iOS simulator / web
+const explicit = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) || process.env.EXPO_PUBLIC_API_BASE_URL;
+const DEFAULT_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const API_BASE_URL = explicit || `http://${DEFAULT_HOST}:5002`;
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -5,6 +5,7 @@ import { useColors } from '@/constants/Colors';
 import Typography from '@/constants/Typography';
 import Metrics from '@/constants/Metrics';
 import { TransactionType } from '@/types';
+import { getCategoryColor } from '@/constants/Categories';
 
 interface TransactionItemProps {
   transaction: TransactionType;
@@ -13,16 +14,17 @@ interface TransactionItemProps {
 
 export function TransactionItem({ transaction, onPress }: TransactionItemProps) {
   const colors = useColors();
-  const { amount, type, category, date, note } = transaction;
+  const { amount, type, category, transactionDate, note, source } = transaction;
   
   // Format date to readable string
-  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+  const formattedDate = new Date(transactionDate).toLocaleDateString('en-US', {
     day: 'numeric',
     month: 'short',
   });
   
   // Format amount with positive/negative sign and rupee symbol
-  const formattedAmount = `${type === 'income' ? '+' : '-'}₹${Math.abs(amount).toLocaleString('en-IN')}`;
+  const isNegative = type === 'cash_out' || type === 'loan' || (type === 'investment' && source !== 'existing');
+  const formattedAmount = `${isNegative ? '-' : '+'}₹${Math.abs(amount).toLocaleString('en-IN')}`;
   
   return (
     <TouchableOpacity
@@ -33,21 +35,31 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
       onPress={() => onPress && onPress(transaction)}
       activeOpacity={0.7}
     >
-      <View style={[styles.iconContainer, { backgroundColor: category.color + '20' }]}>
-        {type === 'income' ? (
-          <ArrowUpRight size={Metrics.iconSize.md} color={colors.success[600]} />
-        ) : (
+      <View style={[styles.iconContainer, { backgroundColor: getCategoryColor(category) + '20' }]}> 
+        {type === 'cash_out' ? (
           <ArrowDownLeft size={Metrics.iconSize.md} color={colors.error[600]} />
+        ) : type === 'investment' ? (
+          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.warning[600]} />
+        ) : type === 'loan' ? (
+          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.accent[600]} />
+        ) : (
+          <ArrowUpRight size={Metrics.iconSize.md} color={colors.success[600]} />
         )}
       </View>
       
       <View style={styles.detailsContainer}>
         <View style={styles.mainDetails}>
-          <Text style={[styles.category, { color: colors.light.text }]}>{category.name}</Text>
+          <Text style={[styles.category, { color: colors.light.text }]} numberOfLines={1}>
+            {note || (transaction as any).title || category}
+          </Text>
           <Text
             style={[
               styles.amount,
-              type === 'income' ? { color: colors.success[600] } : { color: colors.error[600] },
+              type === 'cash_out' || (type === 'investment' && source !== 'existing')
+                ? { color: colors.error[600] }
+                : type === 'loan'
+                ? { color: colors.accent[600] }
+                : { color: colors.success[600] },
             ]}
           >
             {formattedAmount}
@@ -55,11 +67,9 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
         </View>
         
         <View style={styles.secondaryDetails}>
-          {note ? (
-            <Text style={[styles.note, { color: colors.gray[500] }]} numberOfLines={1}>
-              {note}
-            </Text>
-          ) : null}
+          <Text style={[styles.note, { color: colors.gray[500] }]} numberOfLines={1}>
+            {category}
+          </Text>
           <Text style={[styles.date, { color: colors.gray[500] }]}>{formattedDate}</Text>
         </View>
       </View>

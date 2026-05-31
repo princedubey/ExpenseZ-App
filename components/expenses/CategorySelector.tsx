@@ -6,7 +6,7 @@ import Metrics from '@/constants/Metrics';
 import { CategoryType } from '@/types';
 
 interface CategorySelectorProps {
-  type: 'income' | 'expense';
+  type: 'cash_in' | 'cash_out' | 'investment';
   selectedCategory: CategoryType | null;
   onSelectCategory: (category: CategoryType) => void;
   error?: string;
@@ -85,7 +85,7 @@ export default function CategorySelector({
   error,
 }: CategorySelectorProps) {
   const colors = useColors();
-  const categories = type === 'income' ? incomeCategories : expenseCategories;
+  const categories = type === 'cash_in' ? incomeCategories : expenseCategories;
 
   return (
     <View>

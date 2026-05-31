@@ -74,7 +74,7 @@ export const createAuthSlice: StoreSlice<AuthSlice> = (set, get) => {
 
   loginWithGoogle: async (token: string) => {
     try {
-      const response = await api.post('/api/auth/google', { token });
+      const response = await api.post('/api/auth/google', { idToken: token });
       const { user, accessToken, refreshToken } = response.data;
         
         // Save tokens

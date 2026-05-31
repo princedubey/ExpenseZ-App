@@ -5,10 +5,30 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
 import Metrics from '@/constants/Metrics';
 import { Ionicons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import { useStore } from '@/store';
+import { useRouter } from 'expo-router';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const Colors = useColors();
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
+  const getCurrentUser = useStore((s) => s.getCurrentUser);
+  const router = useRouter();
+
+  useEffect(() => {
+    const ensureAuth = async () => {
+      if (!isAuthenticated) {
+        try {
+          await getCurrentUser();
+        } catch (e) {
+          router.replace('/+auth/sign-in');
+        }
+      }
+    };
+
+    ensureAuth();
+  }, [isAuthenticated]);
 
   return (
     <Tabs

@@ -3,22 +3,29 @@ export type UserType = {
   name: string;
   email: string;
   avatar?: string;
+  profileImage?: string;
   currency: string;
 };
 
 export interface CategoryType {
   _id: string;
+  id?: string;
   name: string;
   color?: string;
+  icon?: string;
 }
 
 export interface TransactionType {
   _id: string;
+  id?: string;
   user: string;
   amount: number;
-  type: 'income' | 'expense';
+  type: 'cash_in' | 'cash_out' | 'investment' | 'loan';
+  source?: 'balance' | 'existing';
   category: string;
-  date: string;
+  title?: string;
+  transactionDate: string;
+  date?: string;
   note: string;
   createdAt: string;
   updatedAt: string;

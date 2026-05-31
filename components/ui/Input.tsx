@@ -8,12 +8,13 @@ import {
   ViewStyle,
   TextStyle,
   TextInputProps,
+  Platform,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
-import Colors from '@/constants/Colors';
-import Metrics from '@/constants/Metrics';
-import Typography from '@/constants/Typography';
+import { Metrics } from '@/constants/Metrics';
+import { Typography } from '@/constants/Typography';
 import { useColors } from '@/constants/Colors';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -39,22 +40,59 @@ export function Input({
   isPassword = false,
   fullWidth = true,
   prefix,
+  onFocus,
+  onBlur,
   ...rest
 }: InputProps) {
   const [secureTextEntry, setSecureTextEntry] = useState(isPassword);
+  const [isFocused, setIsFocused] = useState(false);
   const colors = useColors();
+  const { isDark } = useTheme();
 
   const togglePassword = () => {
     setSecureTextEntry((prev) => !prev);
   };
 
+  const handleFocus = (e: any) => {
+    setIsFocused(true);
+    if (onFocus) {
+      onFocus(e);
+    }
+  };
+
+  const handleBlur = (e: any) => {
+    setIsFocused(false);
+    if (onBlur) {
+      onBlur(e);
+    }
+  };
+
   return (
     <View style={[styles.container, fullWidth && styles.fullWidth, containerStyle]}>
       {label && (
-        <Text style={[styles.label, labelStyle, { color: colors.gray[700] }]}>{label}</Text>
+        <Text style={[styles.label, labelStyle, { color: colors.gray[600] }]}>{label}</Text>
       )}
       
-      <View style={[styles.inputContainer, { borderColor: error ? colors.error[500] : colors.gray[200], backgroundColor: colors.light.card }]}>
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            backgroundColor: isFocused 
+              ? (isDark ? '#0f172a' : '#ffffff') 
+              : (isDark ? '#1e293b' : '#f8fafc'),
+            borderColor: error 
+              ? colors.error[500] 
+              : isFocused 
+                ? colors.primary[500] 
+                : (isDark ? '#334155' : '#e2e8f0'),
+            shadowColor: colors.primary[500],
+            shadowOpacity: isFocused ? 0.12 : 0,
+            shadowRadius: isFocused ? 8 : 0,
+            shadowOffset: isFocused ? { width: 0, height: 3 } : { width: 0, height: 0 },
+            elevation: isFocused ? 3 : 0,
+          },
+        ]}
+      >
         {prefix && (
           <Text style={[styles.prefix, { color: colors.gray[500] }]}>
             {prefix}
@@ -71,17 +109,20 @@ export function Input({
             { color: colors.light.text },
             prefix && styles.inputWithPrefix,
           ]}
-          placeholderTextColor={Colors.gray[400]}
+          placeholderTextColor={colors.light.placeholder}
+          selectionColor={colors.primary[500]}
           secureTextEntry={secureTextEntry}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           {...rest}
         />
         
         {isPassword ? (
           <TouchableOpacity onPress={togglePassword} style={styles.rightIcon}>
             {secureTextEntry ? (
-              <Eye size={Metrics.iconSize.sm} color={Colors.gray[500]} />
+              <Eye size={Metrics.iconSize.sm} color={colors.gray[500]} />
             ) : (
-              <EyeOff size={Metrics.iconSize.sm} color={Colors.gray[500]} />
+              <EyeOff size={Metrics.iconSize.sm} color={colors.gray[500]} />
             )}
           </TouchableOpacity>
         ) : rightIcon ? (
@@ -102,25 +143,29 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontFamily: Typography.fontFamily.medium,
-    fontSize: Metrics.fontSizes.sm,
-    marginBottom: Metrics.xs,
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.xs + 1,
+    marginBottom: Metrics.xs + 2,
+    letterSpacing: 0.5,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: Metrics.borderRadius.md,
+    borderRadius: Metrics.borderRadius.lg,
     paddingHorizontal: Metrics.md,
-  },
-  inputError: {
-    borderColor: Colors.error[500],
+    height: 48,
   },
   input: {
     flex: 1,
-    height: 48,
+    height: '100%',
     fontFamily: Typography.fontFamily.regular,
-    fontSize: Metrics.fontSizes.md,
+    fontSize: Metrics.fontSizes.sm + 1,
+    ...Platform.select({
+      web: {
+        outlineStyle: 'none',
+      } as any,
+    }),
   },
   inputWithLeftIcon: {
     paddingLeft: Metrics.xs,
@@ -139,11 +184,11 @@ const styles = StyleSheet.create({
   },
   prefix: {
     fontFamily: Typography.fontFamily.medium,
-    fontSize: Metrics.fontSizes.md,
+    fontSize: Metrics.fontSizes.sm + 1,
   },
   error: {
     fontFamily: Typography.fontFamily.regular,
-    fontSize: Metrics.fontSizes.sm,
+    fontSize: Metrics.fontSizes.xs + 1,
     marginTop: Metrics.xs,
   },
 });

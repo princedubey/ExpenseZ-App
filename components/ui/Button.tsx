@@ -139,10 +139,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryText: {
-    color: Colors.light.text,
+    color: '#ffffff',
   },
   secondaryText: {
-    color: Colors.light.text,
+    color: '#ffffff',
   },
   outlineText: {
     color: Colors.primary[600],
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     color: Colors.primary[600],
   },
   dangerText: {
-    color: Colors.light.text,
+    color: '#ffffff',
   },
   smText: {
     fontSize: Metrics.fontSizes.sm,

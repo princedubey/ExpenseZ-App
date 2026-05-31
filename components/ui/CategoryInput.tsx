@@ -12,12 +12,12 @@ import { Search, X } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
 import Metrics from '@/constants/Metrics';
 import Typography from '@/constants/Typography';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getCategoryColor } from '@/constants/Categories';
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, INVESTMENT_CATEGORIES, getCategoryColor } from '@/constants/Categories';
 
 interface CategoryInputProps {
   value: string;
   onChange: (category: string) => void;
-  type: 'income' | 'expense';
+  type: 'cash_in' | 'cash_out' | 'investment' | 'loan';
   placeholder?: string;
 }
 
@@ -32,7 +32,9 @@ export default function CategoryInput({
   const [searchQuery, setSearchQuery] = useState('');
 
   const categories = useMemo(() => {
-    return type === 'income' ? Object.values(INCOME_CATEGORIES) : Object.values(EXPENSE_CATEGORIES);
+    if (type === 'cash_in') return Object.values(INCOME_CATEGORIES);
+    if (type === 'investment') return Object.values(INVESTMENT_CATEGORIES);
+    return Object.values(EXPENSE_CATEGORIES);
   }, [type]);
 
   const filteredCategories = useMemo(() => {
@@ -142,7 +144,7 @@ export default function CategoryInput({
                   onPress={handleAddNewCategory}
                 >
                   <Text style={[styles.addNewCategoryText, { color: colors.primary[600] }]}>
-                    Add "{searchQuery}" as new category
+                    Add {"\""}{searchQuery}{"\""} as new category
                   </Text>
                 </TouchableOpacity>
               ) : null

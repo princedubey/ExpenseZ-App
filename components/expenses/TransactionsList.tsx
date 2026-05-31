@@ -30,7 +30,7 @@ export function TransactionsList({
     const groups: { [key: string]: TransactionType[] } = {};
     
     transactions.forEach((transaction) => {
-      const date = new Date(transaction.date);
+      const date = new Date(transaction.transactionDate || transaction.date || transaction.createdAt);
       const dateKey = date.toISOString().split('T')[0];
       
       if (!groups[dateKey]) {
@@ -102,7 +102,7 @@ export function TransactionsList({
           {renderSectionHeader(item)}
           {item.data.map((transaction) => (
             <TransactionItem
-              key={transaction.id}
+              key={transaction.id || transaction._id}
               transaction={transaction}
               onPress={onSelectTransaction}
             />
