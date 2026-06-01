@@ -85,8 +85,17 @@ export default function NewsScreen() {
           <TouchableOpacity
             style={[styles.newsCard, { backgroundColor: colors.light.card }]}
             onPress={() => {
-              // Open news URL in browser
-              Linking.openURL(item.url);
+              router.push({
+                pathname: '/news-detail',
+                params: {
+                  title: item.title,
+                  description: item.description,
+                  image: item.image || '',
+                  url: item.url,
+                  source: item.source,
+                  published_at: item.published_at,
+                },
+              });
             }}
           >
             {item.image && (

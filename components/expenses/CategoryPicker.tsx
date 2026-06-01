@@ -21,7 +21,7 @@ export function CategoryPicker({
       <Text style={styles.label}>Category</Text>
       <FlatList
         data={categories}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || item._id || ''}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}

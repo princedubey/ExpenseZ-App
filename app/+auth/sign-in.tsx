@@ -96,7 +96,7 @@ export default function SignInScreen() {
           setPassword('');
           router.replace('/(tabs)');
         } catch (error: any) {
-          if (error?.response?.status === 404) {
+          if (error?.response?.status === 401 || error?.response?.status === 404) {
             showToast('Invalid email or password', 'error');
           } else if (error?.response?.status === 429) {
             showToast('Too many attempts. Please wait a moment.', 'error');

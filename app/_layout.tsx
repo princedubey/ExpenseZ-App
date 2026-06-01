@@ -19,7 +19,7 @@ function RootLayoutContent() {
     } catch (e) {
       // ignore config errors on platforms without Google services
       // eslint-disable-next-line no-console
-      console.warn('Google Sign-In not configured:', e?.message || e);
+      console.warn('Google Sign-In not configured:', (e as any)?.message || e);
     }
   }, []);
 
@@ -44,6 +44,7 @@ function RootLayoutContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="+not-found" />
         <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+        <Stack.Screen name="news-detail" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>

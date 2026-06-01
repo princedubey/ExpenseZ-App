@@ -49,7 +49,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.error[900],
+    backgroundColor: '#B02144',
     alignItems: 'center',
     justifyContent: 'center',
   },

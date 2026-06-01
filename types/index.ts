@@ -8,7 +8,7 @@ export type UserType = {
 };
 
 export interface CategoryType {
-  _id: string;
+  _id?: string;
   id?: string;
   name: string;
   color?: string;

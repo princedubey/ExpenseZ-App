@@ -29,12 +29,7 @@ export const createNewsSlice: StoreSlice<NewsSlice> = (set, get) => ({
       if (params?.limit) queryParams.append('limit', params.limit.toString());
       if (params?.category) queryParams.append('category', params.category);
 
-      // Add MediaStack API key and other required parameters
-      queryParams.append('access_key', process.env.EXPO_PUBLIC_MEDIASTACK_API_KEY || '');
-      queryParams.append('countries', 'in'); // India news
-      queryParams.append('languages', 'en'); // English language
-
-      const response = await api.get(`http://api.mediastack.com/v1/news?${queryParams.toString()}`);
+      const response = await api.get(`/api/news?${queryParams.toString()}`);
       const { data, pagination } = response.data;
       
       set((state) => ({ 

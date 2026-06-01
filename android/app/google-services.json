@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "104455033802",
+    "project_id": "expense-z",
+    "storage_bucket": "expense-z.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104455033802:android:a3c3fed849d5c5b107f533",
+        "android_client_info": {
+          "package_name": "com.expensez.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "104455033802-j2j3bb6e949ri0ccrg25oo7n3cespmej.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBsXUGgt1X-1e2paPVF42oiRITr8v2t3-8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "104455033802-j2j3bb6e949ri0ccrg25oo7n3cespmej.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

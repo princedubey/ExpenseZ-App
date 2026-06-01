@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ChevronRight, Wallet, PiggyBank, BarChart3, ShieldCheck, ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import Typography from '@/constants/Typography';
@@ -66,6 +67,7 @@ export default function IntroScreen() {
   const colors = useColors();
   const { isDark } = useTheme();
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
   const slidesRef = useRef<FlatList<IntroSlide>>(null);
@@ -172,11 +174,7 @@ export default function IntroScreen() {
         ]}
       />
 
-      <View style={[styles.header, { paddingTop: isCompact ? Metrics.md : Metrics.lg, paddingBottom: isCompact ? Metrics.xs : Metrics.sm }]}>
-        <Image 
-          source={require('@/assets/images/expensez-logo.png')} 
-          style={styles.logoImage} 
-        />
+      <View style={[styles.header, { paddingTop: insets.top + (isCompact ? Metrics.xs : Metrics.md), paddingBottom: isCompact ? Metrics.xs : Metrics.sm }]}>
         <Text style={[styles.kicker, { color: isDark ? '#fecdd3' : '#e11d48' }]}>Next-gen financial core</Text>
         <Text
           style={[
@@ -315,7 +313,14 @@ export default function IntroScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: '#e11d48', borderColor: 'rgba(225, 29, 72, 0.4)' }]}
+        style={[
+          styles.button,
+          {
+            backgroundColor: '#e11d48',
+            borderColor: 'rgba(225, 29, 72, 0.4)',
+            marginBottom: insets.bottom || Metrics.lg,
+          },
+        ]}
         onPress={scrollTo}
         activeOpacity={0.85}
       >

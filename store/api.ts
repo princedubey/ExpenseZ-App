@@ -6,9 +6,36 @@ import { Platform } from 'react-native';
 // - Honor explicit expo config extra or environment override when provided
 // - Use 10.0.2.2 for Android emulator (maps to host machine localhost)
 // - Fallback to localhost for iOS simulator / web
-const explicit = (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) || process.env.EXPO_PUBLIC_API_BASE_URL;
-const DEFAULT_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const API_BASE_URL = explicit || `http://${DEFAULT_HOST}:5002`;
+const explicit = 
+  (Constants.expoConfig?.extra?.apiBaseUrl as string | undefined) || 
+  process.env.EXPO_PUBLIC_API_URL || 
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  process.env.API_URL;
+
+// Retrieve Metro packager IP if available to support testing on physical devices
+const hostUri = Constants.expoConfig?.hostUri;
+const packagerIp = hostUri ? hostUri.split(':')[0] : null;
+
+const DEFAULT_HOST = packagerIp || (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
+
+let resolvedBaseUrl = explicit || `http://${DEFAULT_HOST}:5002`;
+
+// If we are in development mode and the resolved URL points to the production Vercel backend,
+// redirect it to the local backend server so local testing works correctly.
+if (__DEV__ && resolvedBaseUrl.includes('expense-z-backend.vercel.app')) {
+  resolvedBaseUrl = `http://${DEFAULT_HOST}:5002`;
+}
+
+// 0.0.0.0 is invalid for client requests, rewrite to localhost or DEFAULT_HOST if found
+if (resolvedBaseUrl.includes('0.0.0.0')) {
+  resolvedBaseUrl = Platform.OS === 'web' 
+    ? resolvedBaseUrl.replace('0.0.0.0', 'localhost')
+    : resolvedBaseUrl.replace('0.0.0.0', DEFAULT_HOST);
+}
+
+const API_BASE_URL = resolvedBaseUrl;
+console.log('[API] Resolved API_BASE_URL:', API_BASE_URL);
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
