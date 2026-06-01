@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system/build/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { jsPDF } from 'jspdf';
