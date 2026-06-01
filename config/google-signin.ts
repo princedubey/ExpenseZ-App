@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import googleServices from '../google-services.json';
 
@@ -6,7 +7,7 @@ let googleSigninModule: any | null = null;
 const isExpoGo = Constants.appOwnership === 'expo';
 
 const getGoogleSignin = () => {
-  if (isExpoGo) {
+  if (isExpoGo || Platform.OS === 'web') {
     return null;
   }
 
@@ -17,15 +18,7 @@ const getGoogleSignin = () => {
   return googleSigninModule;
 };
 
-const webClientId = (() => {
-  try {
-    const client = googleServices.client?.[0];
-    const oauth = client?.oauth_client?.find((c: any) => c.client_type === 3) || client?.oauth_client?.[0];
-    return oauth?.client_id || 'YOUR_WEB_CLIENT_ID';
-  } catch (e) {
-    return 'YOUR_WEB_CLIENT_ID';
-  }
-})();
+export const webClientId = '129393014646-vtn4vfso08jc7o29ipsut5vur8s5co2s.apps.googleusercontent.com';
 
 export const configureGoogleSignIn = () => {
   const GoogleSignin = getGoogleSignin();

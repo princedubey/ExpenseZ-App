@@ -22,12 +22,17 @@ import { useStore } from '@/store';
 import { useToast } from '@/contexts/ToastContext';
 import debounce from 'lodash/debounce';
 import Checkbox from '@/components/ui/Checkbox';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import {
   configureGoogleSignIn,
   isGoogleSignInAvailable,
   signInWithGoogle,
+  webClientId,
 } from '@/config/google-signin';
 import GoogleIcon from '@/components/ui/GoogleIcon';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -43,6 +48,48 @@ export default function SignInScreen() {
   const loadStoredCredentials = useStore((state) => state.loadStoredCredentials);
   const { showToast } = useToast();
   const googleSignInAvailable = isGoogleSignInAvailable();
+
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    webClientId,
+    responseType: 'id_token',
+  });
+
+  useEffect(() => {
+    if (googleRequest?.redirectUri) {
+      console.log('Google Auth Redirect URI:', googleRequest.redirectUri);
+    }
+  }, [googleRequest]);
+
+  const handleGoogleLogin = useCallback(async (idToken: string) => {
+    try {
+      setIsLoading(true);
+      const loginWithGoogle = useStore.getState().loginWithGoogle;
+      await loginWithGoogle(idToken);
+      showToast('Signed in with Google', 'success');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Google sign-in failed:', error);
+      showToast('Google sign-in failed', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [router, showToast]);
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication, params } = googleResponse;
+      const idToken = params?.id_token || authentication?.idToken;
+      if (idToken) {
+        handleGoogleLogin(idToken);
+      } else {
+        console.error('No ID token found in auth session response:', googleResponse);
+        showToast('Google authentication failed: missing token', 'error');
+      }
+    } else if (googleResponse?.type === 'error') {
+      console.error('Google auth session error:', googleResponse.error);
+      showToast('Google sign-in failed', 'error');
+    }
+  }, [googleResponse, handleGoogleLogin, showToast]);
 
   useEffect(() => {
     const loadCredentials = async () => {
@@ -194,44 +241,41 @@ export default function SignInScreen() {
                 textStyle={{ fontSize: Metrics.fontSizes.md + 1 }}
                 disabled={isCooldown}
               />
-
-              {googleSignInAvailable && (
-                <>
-                  <View style={styles.dividerRow}>
-                    <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
-                    <Text style={[styles.dividerText, { color: colors.gray[500] }]}>OR</Text>
-                    <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
-                  </View>
-                  <Button
-                    title="Continue with Google"
-                    onPress={async () => {
-                      try {
-                        setIsLoading(true);
-                        const userInfo: any = await signInWithGoogle();
-                        const idToken: string | undefined = userInfo?.idToken;
-                        if (idToken) {
-                          const loginWithGoogle = useStore.getState().loginWithGoogle;
-                          await loginWithGoogle(idToken);
-                          showToast('Signed in with Google', 'success');
-                          router.replace('/(tabs)');
-                        }
-                      } catch (error) {
-                        console.error('Google sign-in failed:', error);
-                        showToast('Google sign-in failed', 'error');
-                      } finally {
-                        setIsLoading(false);
+              <View style={styles.dividerRow}>
+                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
+                <Text style={[styles.dividerText, { color: colors.gray[500] }]}>OR</Text>
+                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
+              </View>
+              <Button
+                title="Continue with Google"
+                onPress={async () => {
+                  if (googleSignInAvailable) {
+                    try {
+                      setIsLoading(true);
+                      const userInfo: any = await signInWithGoogle();
+                      const idToken: string | undefined = userInfo?.idToken;
+                      if (idToken) {
+                        await handleGoogleLogin(idToken);
                       }
-                    }}
-                    fullWidth
-                    icon={<GoogleIcon size={18} />}
-                    iconPosition="left"
-                    variant="outline"
-                    size="lg"
-                    style={{ borderRadius: Metrics.borderRadius.lg, backgroundColor: 'transparent' }}
-                    textStyle={{ color: colors.light.text }}
-                  />
-                </>
-              )}
+                    } catch (error) {
+                      console.error('Google sign-in failed:', error);
+                      showToast('Google sign-in failed', 'error');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  } else {
+                    // Use web/expo-auth-session fallback
+                    promptGoogleAsync();
+                  }
+                }}
+                fullWidth
+                icon={<GoogleIcon size={18} />}
+                iconPosition="left"
+                variant="outline"
+                size="lg"
+                style={{ borderRadius: Metrics.borderRadius.lg, backgroundColor: 'transparent' }}
+                textStyle={{ color: colors.light.text }}
+              />
 
               <View style={styles.footerRow}>
                 <Text style={[styles.footerText, { color: colors.gray[600] }]}>Don{"'"}t have an account?</Text>
