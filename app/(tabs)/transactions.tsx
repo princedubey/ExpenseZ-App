@@ -3,11 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system/build/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useColors } from '@/constants/Colors';
 import { Metrics } from '@/constants/Metrics';
 import { Typography } from '@/constants/Typography';
@@ -468,6 +466,8 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
   const netFlow = cashIn - cashOut - investments - loans;
 
   if (Platform.OS === 'web') {
+    const { jsPDF } = require('jspdf');
+    const autoTable = require('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -547,7 +547,7 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
       alternateRowStyles: {
         fillColor: [248, 250, 252],
       },
-      didParseCell: (data) => {
+      didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 6) {
           const text = String(data.cell.raw || '');
           const isNegative = text.startsWith('-');
