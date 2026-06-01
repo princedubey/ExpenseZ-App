@@ -131,19 +131,22 @@ export interface TransactionSlice {
 export interface AnalyticsData {
   month: number;
   year: number;
-  categories: {
-    category: string;
-    total: number;
-  }[];
   monthlyStats: {
     month: string;
     income: number;
     expense: number;
-    investments?: number;
-    loans?: number;
+    investments: number;
+    investmentsFromBalance: number;
+    loans: number;
+    loansFromBalance: number;
+    savings: number;
     balance: number;
   }[];
   spendingByCategories: {
+    category: string;
+    total: number;
+  }[];
+  currentMonthCategories: {
     category: string;
     total: number;
   }[];
@@ -161,9 +164,10 @@ export interface AnalyticsData {
     totalExpense: number;
     totalInvestments: number;
     totalLoans: number;
-    totalInvestmentsFromBalance?: number;
-    totalLoansFromBalance?: number;
-    balance: number;
+    totalInvestmentsFromBalance: number;
+    totalLoansFromBalance: number;
+    netBalance: number;
+    netSavings: number;
   };
 }
 
