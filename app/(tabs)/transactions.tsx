@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useColors } from '@/constants/Colors';
@@ -466,8 +466,8 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
   const netFlow = cashIn - cashOut - investments - loans;
 
   if (Platform.OS === 'web') {
-    const { jsPDF } = require('jspdf');
-    const autoTable = require('jspdf-autotable');
+    const { jsPDF } = await import('jspdf');
+    const autoTable = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -490,7 +490,7 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
       ['Net Cash Flow', `${netFlow < 0 ? '-' : '+'}Rs. ${Math.abs(netFlow).toLocaleString('en-IN')}`],
     ];
 
-    autoTable(doc, {
+    autoTable.default(doc, {
       startY: 140,
       head: [['Metric', 'Value']],
       body: summaryRows,

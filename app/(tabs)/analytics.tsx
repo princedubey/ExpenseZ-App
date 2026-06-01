@@ -26,6 +26,7 @@ export default function AnalyticsScreen() {
   const loadAnalytics = useCallback(async () => {
     try {
       await getUserAnalytics();
+    console.log('Fetched analytics data:', analytics);
     } catch (error: any) {
       showToast(error?.message || 'Failed to load analytics', 'error');
     }
@@ -73,20 +74,20 @@ export default function AnalyticsScreen() {
 
   const screenWidth = Dimensions.get('window').width - Metrics.lg * 2;
 
-  // Filter out months with no data
-  const filteredMonthlyStats = analytics?.monthlyStats.filter(
-    (stat) => 
-      stat.income > 0 || 
-      stat.expense > 0 || 
-      ((stat.investments || 0) > 0) || 
-      ((stat.loans || 0) > 0)
-  ) || [];
+  // Filter out months with no data for better chart display
+  const filteredMonthlyStats = (analytics?.monthlyStats || []).filter(
+    (stat) => stat.income > 0 || stat.expense > 0 || (stat.investments ?? 0) > 0
+  );
+  // Fallback to all months if no non-zero months found
+  const chartMonthlyStats = filteredMonthlyStats.length > 0
+    ? filteredMonthlyStats
+    : (analytics?.monthlyStats || []);
 
-  // Calculate Savings Rate and other KPIs
-  const totalIncome = analytics?.summary.totalIncome || 0;
-  const totalExpense = analytics?.summary.totalExpense || 0;
-  const totalInvestments = analytics?.summary.totalInvestments || 0;
-  const totalLoans = analytics?.summary.totalLoans || 0;
+  // Calculate totals from ALL-TIME summary
+  const totalIncome = analytics?.summary?.totalIncome || 0;
+  const totalExpense = analytics?.summary?.totalExpense || 0;
+  const totalInvestments = analytics?.summary?.totalInvestments || 0;
+  const totalLoans = analytics?.summary?.totalLoans || 0;
 
   const savingsAmount = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? (savingsAmount / totalIncome) * 100 : 0;
@@ -171,14 +172,17 @@ export default function AnalyticsScreen() {
   const insightsList = getInsights();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]} edges={['top']}>
-      <ScrollView
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadAnalytics} colors={[colors.primary[600]]} />
-        }
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.header}>
+    <>
+      {!analytics && (<Text style={[styles.emptyStateText, { color: colors.gray[500] }]}>No analytics data available</Text>)}
+      {analytics && (
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]} edges={['top']}>
+          <ScrollView
+            refreshControl={
+              <RefreshControl refreshing={loading} onRefresh={loadAnalytics} colors={[colors.primary[600]]} />
+            }
+            contentContainerStyle={styles.scrollContent}
+          >
+            <View style={styles.header}>
           <Text style={[styles.title, { color: colors.light.text }]}>Analytics</Text>
           <Text style={[styles.subtitle, { color: colors.gray[500] }]}>Personal finance and cash flow overview</Text>
         </View>
@@ -298,19 +302,19 @@ export default function AnalyticsScreen() {
           <>
             <View style={[styles.contentCard, { backgroundColor: colors.light.card, borderColor: colors.light.border }]}>
               <Text style={[styles.contentTitle, { color: colors.light.text }]}>Cash Flow Trends</Text>
-            {filteredMonthlyStats.length > 0 ? (
+            {chartMonthlyStats.length > 0 ? (
               <>
                 <LineChart
                   data={{
-                    labels: filteredMonthlyStats.map((stat) => formatMonth(stat.month)),
+                    labels: chartMonthlyStats.map((stat) => formatMonth(stat.month)),
                     datasets: [
                       {
-                        data: filteredMonthlyStats.map((stat) => stat.income),
+                        data: chartMonthlyStats.map((stat) => stat.income),
                         color: () => colors.success[600],
                         strokeWidth: 3,
                       },
                       {
-                        data: filteredMonthlyStats.map((stat) => stat.expense),
+                        data: chartMonthlyStats.map((stat) => stat.expense),
                         color: () => colors.error[600],
                         strokeWidth: 3,
                       },
@@ -628,8 +632,10 @@ export default function AnalyticsScreen() {
             </View>
           </View>
         )}
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+        </SafeAreaView>
+      )}
+      </>
   );
 }
 

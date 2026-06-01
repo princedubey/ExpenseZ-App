@@ -159,8 +159,10 @@ export interface AnalyticsData {
   summary: {
     totalIncome: number;
     totalExpense: number;
-    totalInvestments?: number;
-    totalLoans?: number;
+    totalInvestments: number;
+    totalLoans: number;
+    totalInvestmentsFromBalance?: number;
+    totalLoansFromBalance?: number;
     balance: number;
   };
 }
