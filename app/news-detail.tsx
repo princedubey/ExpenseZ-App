@@ -103,20 +103,20 @@ export default function NewsDetailScreen() {
 
   return (
     <SafeAreaView 
-      style={[styles.container, { backgroundColor: isDark ? colors.gray[900] : colors.light.background }]} 
+      style={[styles.container, { backgroundColor: colors.light.background }]} 
       edges={['top', 'bottom']}
     >
       {/* Floating Sticky Header */}
-      <View style={[styles.navbar, { borderBottomColor: isDark ? colors.gray[800] : colors.light.border }]}>
+      <View style={[styles.navbar, { borderBottomColor: colors.light.border }]}>
         <TouchableOpacity 
-          style={[styles.navButton, { backgroundColor: isDark ? colors.gray[800] : 'rgba(0,0,0,0.05)' }]} 
+          style={[styles.navButton, { backgroundColor: isDark ? colors.gray[100] : 'rgba(0,0,0,0.05)' }]} 
           onPress={() => router.back()}
         >
           <ArrowLeft size={20} color={isDark ? colors.light.text : colors.gray[800]} />
         </TouchableOpacity>
         
         {/* Toggle Mode Switcher */}
-        <View style={[styles.tabContainer, { backgroundColor: isDark ? colors.gray[800] : colors.gray[200] }]}>
+        <View style={[styles.tabContainer, { backgroundColor: isDark ? colors.gray[100] : colors.gray[200] }]}>
           <TouchableOpacity
             style={[
               styles.tab, 
@@ -140,7 +140,7 @@ export default function NewsDetailScreen() {
         </View>
 
         <TouchableOpacity 
-          style={[styles.navButton, { backgroundColor: isDark ? colors.gray[800] : 'rgba(0,0,0,0.05)' }]} 
+          style={[styles.navButton, { backgroundColor: isDark ? colors.gray[100] : 'rgba(0,0,0,0.05)' }]} 
           onPress={handleShare}
         >
           <Share2 size={20} color={isDark ? colors.light.text : colors.gray[800]} />
@@ -185,24 +185,24 @@ export default function NewsDetailScreen() {
             </Text>
 
             {/* Premium Divider */}
-            <View style={[styles.divider, { backgroundColor: isDark ? colors.gray[800] : colors.light.border }]} />
+            <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
 
             {/* Typography Size Bar */}
-            <View style={[styles.typographyBar, { backgroundColor: isDark ? colors.gray[800] : colors.gray[100] }]}>
+            <View style={[styles.typographyBar, { backgroundColor: colors.gray[100] }]}>
               <View style={styles.typographyLabel}>
                 <Type size={16} color={colors.gray[500]} />
                 <Text style={[styles.typographyText, { color: colors.gray[600] }]}>Adjust Text Size</Text>
               </View>
               <View style={styles.fontControls}>
                 <TouchableOpacity 
-                  style={[styles.fontButton, { backgroundColor: isDark ? colors.gray[700] : '#ffffff' }]} 
+                  style={[styles.fontButton, { backgroundColor: isDark ? colors.gray[200] : '#ffffff', borderColor: isDark ? colors.gray[300] : '#D1D5DB' }]} 
                   onPress={() => adjustFontSize('decrease')}
                 >
                   <Text style={[styles.fontButtonText, { color: isDark ? '#ffffff' : '#000000' }]}>A-</Text>
                 </TouchableOpacity>
                 <Text style={[styles.currentFontSize, { color: isDark ? '#ffffff' : colors.light.text }]}>{fontSize}px</Text>
                 <TouchableOpacity 
-                  style={[styles.fontButton, { backgroundColor: isDark ? colors.gray[700] : '#ffffff' }]} 
+                  style={[styles.fontButton, { backgroundColor: isDark ? colors.gray[200] : '#ffffff', borderColor: isDark ? colors.gray[300] : '#D1D5DB' }]} 
                   onPress={() => adjustFontSize('increase')}
                 >
                   <Text style={[styles.fontButtonText, { color: isDark ? '#ffffff' : '#000000' }]}>A+</Text>
@@ -211,18 +211,18 @@ export default function NewsDetailScreen() {
             </View>
 
             {/* Main Summary Content */}
-            <Text style={[styles.articleBody, { fontSize, color: isDark ? colors.gray[300] : colors.gray[800], lineHeight: fontSize * 1.6 }]}>
+            <Text style={[styles.articleBody, { fontSize, color: isDark ? colors.gray[800] : colors.gray[800], lineHeight: fontSize * 1.6 }]}>
               {description || "No full summary is available for this article. Please tap 'Full Web' at the top to read the original article."}
             </Text>
 
             {/* View Full Web callout */}
             <TouchableOpacity 
-              style={[styles.webCallout, { backgroundColor: colors.primary[50] + '33', borderColor: colors.primary[200] }]}
+              style={[styles.webCallout, { backgroundColor: colors.primary[50] + '22', borderColor: colors.primary[300] }]}
               onPress={() => setActiveTab('web')}
             >
               <View style={styles.calloutContent}>
-                <Text style={[styles.calloutTitle, { color: colors.primary[700] }]}>Read the original article</Text>
-                <Text style={[styles.calloutSubtitle, { color: colors.gray[600] }]}>Load the full webpage inside the app</Text>
+                <Text style={[styles.calloutTitle, { color: colors.primary[600] }]}>Read the original article</Text>
+                <Text style={[styles.calloutSubtitle, { color: colors.gray[500] }]}>Load the full webpage inside the app</Text>
               </View>
               <ChevronRight size={20} color={colors.primary[600]} />
             </TouchableOpacity>

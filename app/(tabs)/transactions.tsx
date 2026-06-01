@@ -123,6 +123,12 @@ const escapeCsv = (value: string | number | null | undefined) => {
 };
 
 const buildCsv = (items: Transaction[]) => {
+  const cashIn = items.filter((item) => item.type === 'cash_in').reduce((sum, item) => sum + item.amount, 0);
+  const cashOut = items.filter((item) => item.type === 'cash_out').reduce((sum, item) => sum + item.amount, 0);
+  const investments = items.filter((item) => item.type === 'investment').reduce((sum, item) => sum + item.amount, 0);
+  const loans = items.filter((item) => item.type === 'loan').reduce((sum, item) => sum + item.amount, 0);
+  const netFlow = cashIn - cashOut - investments - loans;
+
   const rows = [
     [
       'Date',
@@ -153,6 +159,13 @@ const buildCsv = (items: Transaction[]) => {
         item.note || '',
       ].map(escapeCsv);
     }),
+    [],
+    ['Summary'].map(escapeCsv),
+    ['Total Cash In', cashIn].map(escapeCsv),
+    ['Total Cash Out', cashOut].map(escapeCsv),
+    ['Total Investments', investments].map(escapeCsv),
+    ['Total Loans & EMIs', loans].map(escapeCsv),
+    ['Net Cash Flow', netFlow].map(escapeCsv),
   ];
 
   return rows.map((row) => row.join(',')).join('\n');
@@ -379,19 +392,19 @@ const buildPdfHtml = (items: Transaction[], activeFilterLabel: string) => {
             <div class="metric-label">Transactions</div>
             <div class="metric-value">${items.length}</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" style="background-color: #fef9c3; border-color: #fde047;">
             <div class="metric-label">Cash In</div>
             <div class="metric-value" style="color: #10b981;">Rs. ${cashIn.toLocaleString('en-IN')}</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" style="background-color: #fef9c3; border-color: #fde047;">
             <div class="metric-label">Cash Out</div>
             <div class="metric-value" style="color: #ef4444;">Rs. ${cashOut.toLocaleString('en-IN')}</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" style="background-color: #fef9c3; border-color: #fde047;">
             <div class="metric-label">Investments</div>
             <div class="metric-value" style="color: #2563eb;">Rs. ${investments.toLocaleString('en-IN')}</div>
           </div>
-          <div class="metric-card">
+          <div class="metric-card" style="background-color: #fef9c3; border-color: #fde047;">
             <div class="metric-label">Loans & EMIs</div>
             <div class="metric-value" style="color: #d97706;">Rs. ${loans.toLocaleString('en-IN')}</div>
           </div>
@@ -467,7 +480,7 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
 
   if (Platform.OS === 'web') {
     const { jsPDF } = await import('jspdf');
-    const autoTable = await import('jspdf-autotable');
+    const autoTable = (await import('jspdf-autotable')).default;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -490,7 +503,7 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
       ['Net Cash Flow', `${netFlow < 0 ? '-' : '+'}Rs. ${Math.abs(netFlow).toLocaleString('en-IN')}`],
     ];
 
-    autoTable.default(doc, {
+    autoTable(doc, {
       startY: 140,
       head: [['Metric', 'Value']],
       body: summaryRows,
@@ -509,6 +522,11 @@ const sharePdf = async (items: Transaction[], html: string, activeFilterLabel: s
       columnStyles: {
         0: { cellWidth: 180 },
         1: { cellWidth: 180 },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.row.index >= 1 && data.row.index <= 4) {
+          data.cell.styles.fillColor = [254, 249, 195]; // light yellow
+        }
       },
     });
 
@@ -1295,7 +1313,7 @@ export default function TransactionsScreen() {
 
                 {/* Mid Section */}
                 <View style={styles.midBlock}>
-                  <Text style={[styles.transactionTitle, { color: colors.light.text }]} numberOfLines={1}>
+                  <Text style={[styles.transactionTitle, { color: colors.light.text, marginRight: Metrics.sm }]} numberOfLines={2}>
                     {item.title || item.note || item.category || 'No description'}
                   </Text>
                   <View style={styles.metaRow}>

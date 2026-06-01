@@ -291,8 +291,8 @@ export default function AnalyticsScreen() {
             </View>
             <View style={styles.heroStatDivider} />
             <View style={styles.heroStatItem}>
-              <Text style={styles.heroStatLabel}>SAVED</Text>
-              <Text style={[styles.heroStatValue, { color: '#a78bfa' }]}>{savingsRate.toFixed(0)}%</Text>
+              <Text style={styles.heroStatLabel}>INVESTED</Text>
+              <Text style={[styles.heroStatValue, { color: '#a78bfa' }]}>{formatCurrency(totalInvestments)}</Text>
             </View>
           </View>
         </LinearGradient>
@@ -376,8 +376,8 @@ export default function AnalyticsScreen() {
               <Text style={[styles.cardSubtitle, { color: colors.gray[500] }]}>Where every rupee of income goes</Text>
 
               {[
-                { label: 'Total Income',           value: totalIncome,                pct: 100,         color: '#10b981', icon: ArrowUpRight },
-                { label: 'Spent on Expenses',       value: totalExpense,               pct: expenseRate, color: '#ef4444', icon: ArrowDownLeft },
+                { label: 'Total Income',           value: totalIncome,                pct: 100,         color: '#10b981', icon: ArrowDownLeft },
+                { label: 'Spent on Expenses',       value: totalExpense,               pct: expenseRate, color: '#ef4444', icon: ArrowUpRight },
                 { label: 'Invested (cash-out)',      value: totalInvestmentsFromBalance, pct: investRate,  color: '#6366f1', icon: ShieldCheck },
                 { label: 'Loans & EMIs (cash-out)', value: totalLoansFromBalance,       pct: loanRate,    color: '#f59e0b', icon: Landmark },
                 { label: 'Net Savings (retained)',   value: netSavings,                 pct: savingsRate, color: '#0ea5e9', icon: TrendingUp },

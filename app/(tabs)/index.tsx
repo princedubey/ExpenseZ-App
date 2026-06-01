@@ -99,7 +99,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.date, { color: colors.gray[400] }]}>{formattedDate}</Text>
+            <Text style={[styles.date, { color: colors.gray[600] }]}>{formattedDate}</Text>
             <Text style={[styles.greeting, { color: colors.light.text }]}>
               Hello, {user?.name?.split(' ')[0] || 'User'} 👋
             </Text>
@@ -117,7 +117,7 @@ export default function HomeScreen() {
         <View style={[styles.balanceCard, { backgroundColor: colors.light.card, borderColor: colors.light.border }]}>
           <View style={styles.balanceHeader}>
             <View>
-              <Text style={[styles.balanceLabel, { color: colors.gray[400] }]}>LIQUID CASH BALANCE</Text>
+              <Text style={[styles.balanceLabel, { color: colors.gray[600] }]}>LIQUID CASH BALANCE</Text>
               <Text style={[styles.balanceAmount, { color: colors.light.text }]}>
                 {stats ? formatCurrency(stats.savings) : '₹0'}
               </Text>
@@ -141,9 +141,9 @@ export default function HomeScreen() {
               >
                 <View style={styles.gridItemTopRow}>
                   <View style={[styles.gridIconCircle, { backgroundColor: colors.success[50] }]}>
-                    <ArrowUp size={14} color={colors.success[600]} />
+                    <ArrowDown size={14} color={colors.success[600]} />
                   </View>
-                  <Text style={[styles.gridItemLabel, { color: colors.gray[400] }]} numberOfLines={1}>CASH IN</Text>
+                  <Text style={[styles.gridItemLabel, { color: colors.gray[600] }]} numberOfLines={1}>CASH IN</Text>
                   <View style={{ flex: 1 }} />
                   <ChevronRight size={14} color={colors.gray[300]} />
                 </View>
@@ -160,9 +160,9 @@ export default function HomeScreen() {
               >
                 <View style={styles.gridItemTopRow}>
                   <View style={[styles.gridIconCircle, { backgroundColor: colors.error[50] }]}>
-                    <ArrowDown size={14} color={colors.error[600]} />
+                    <ArrowUp size={14} color={colors.error[600]} />
                   </View>
-                  <Text style={[styles.gridItemLabel, { color: colors.gray[400] }]} numberOfLines={1}>CASH OUT</Text>
+                  <Text style={[styles.gridItemLabel, { color: colors.gray[600] }]} numberOfLines={1}>CASH OUT</Text>
                   <View style={{ flex: 1 }} />
                   <ChevronRight size={14} color={colors.gray[300]} />
                 </View>
@@ -184,7 +184,7 @@ export default function HomeScreen() {
                   <View style={[styles.gridIconCircle, { backgroundColor: colors.warning[50] }]}>
                     <TrendingUp size={14} color={colors.warning[600]} />
                   </View>
-                  <Text style={[styles.gridItemLabel, { color: colors.gray[400] }]} numberOfLines={1}>INVESTMENTS</Text>
+                  <Text style={[styles.gridItemLabel, { color: colors.gray[600] }]} numberOfLines={1}>INVESTMENTS</Text>
                   <View style={{ flex: 1 }} />
                   <ChevronRight size={14} color={colors.gray[300]} />
                 </View>
@@ -203,7 +203,7 @@ export default function HomeScreen() {
                   <View style={[styles.gridIconCircle, { backgroundColor: colors.accent[50] }]}>
                     <Wallet size={14} color={colors.accent[600]} />
                   </View>
-                  <Text style={[styles.gridItemLabel, { color: colors.gray[400] }]} numberOfLines={1}>LOANS & EMI</Text>
+                  <Text style={[styles.gridItemLabel, { color: colors.gray[600] }]} numberOfLines={1}>LOANS & EMI</Text>
                   <View style={{ flex: 1 }} />
                   <ChevronRight size={14} color={colors.gray[300]} />
                 </View>
@@ -614,8 +614,8 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: Metrics.tabBarHeight + Metrics.xl,
-    right: Metrics.xl,
+    right: Metrics.lg,
+    bottom: Metrics.lg,
     width: 56,
     height: 56,
     borderRadius: 28,

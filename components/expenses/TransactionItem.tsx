@@ -37,19 +37,19 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
     >
       <View style={[styles.iconContainer, { backgroundColor: getCategoryColor(category) + '20' }]}> 
         {type === 'cash_out' ? (
-          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.error[600]} />
+          <ArrowUpRight size={Metrics.iconSize.md} color={colors.error[600]} />
         ) : type === 'investment' ? (
-          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.warning[600]} />
+          <ArrowUpRight size={Metrics.iconSize.md} color={colors.warning[600]} />
         ) : type === 'loan' ? (
-          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.accent[600]} />
+          <ArrowUpRight size={Metrics.iconSize.md} color={colors.accent[600]} />
         ) : (
-          <ArrowUpRight size={Metrics.iconSize.md} color={colors.success[600]} />
+          <ArrowDownLeft size={Metrics.iconSize.md} color={colors.success[600]} />
         )}
       </View>
       
       <View style={styles.detailsContainer}>
         <View style={styles.mainDetails}>
-          <Text style={[styles.category, { color: colors.light.text }]} numberOfLines={1}>
+          <Text style={[styles.category, { color: colors.light.text }]} numberOfLines={2}>
             {note || (transaction as any).title || category}
           </Text>
           <Text
@@ -107,6 +107,8 @@ const styles = StyleSheet.create({
   category: {
     fontFamily: Typography.fontFamily.medium,
     fontSize: Metrics.fontSizes.md,
+    flex: 1,
+    marginRight: Metrics.sm,
   },
   amount: {
     fontFamily: Typography.fontFamily.semiBold,
