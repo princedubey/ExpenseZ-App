@@ -13,8 +13,19 @@ export const getGoogleAccessToken = async (): Promise<string | null> => {
 
   try {
     const { GoogleSignin } = require('@react-native-google-signin/google-signin');
-    const isSignedIn = await GoogleSignin.isSignedIn();
+    let isSignedIn = await GoogleSignin.isSignedIn();
     if (!isSignedIn) {
+      try {
+        console.log('[Google Drive] User not natively signed in. Attempting silent sign-in...');
+        await GoogleSignin.signInSilently();
+        isSignedIn = await GoogleSignin.isSignedIn();
+      } catch (silentError) {
+        console.error('[Google Drive] Silent sign-in failed:', silentError);
+      }
+    }
+
+    if (!isSignedIn) {
+      console.warn('[Google Drive] No active Google Sign-In session found.');
       return null;
     }
     const tokens = await GoogleSignin.getTokens();
