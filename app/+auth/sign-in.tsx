@@ -122,10 +122,24 @@ export default function SignInScreen() {
                   onPress={async () => {
                     try {
                       setIsLoading(true);
-                      const userInfo: any = await signInWithGoogle();
-                      const idToken: string | undefined = userInfo?.idToken;
+                      const response = await signInWithGoogle();
+                      let idToken: string | null = null;
+                      let actualUserInfo: any = null;
+
+                      if (response && response.type === 'success' && response.data) {
+                        actualUserInfo = response.data;
+                        idToken = response.data.idToken;
+                      } else if (response && response.idToken) {
+                        actualUserInfo = response;
+                        idToken = response.idToken;
+                      }
+
                       if (idToken) {
-                        await handleGoogleLogin(idToken, userInfo);
+                        await handleGoogleLogin(idToken, actualUserInfo);
+                      } else if (response?.type === 'cancelled') {
+                        showToast('Sign-in cancelled', 'info');
+                      } else {
+                        throw new Error('Google Sign-In failed to return credentials.');
                       }
                     } catch (error) {
                       console.error('Google sign-in failed:', error);

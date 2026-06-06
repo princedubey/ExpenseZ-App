@@ -22,7 +22,7 @@ const getGoogleSignin = () => {
   }
 };
 
-export const webClientId = '129393014646-tcp47sfei2si5irkdr7hf5s069ggq5l4.apps.googleusercontent.com';
+export const webClientId = '129393014646-1g1vmu36bvbo9ps9dn28akliqohmkvsk.apps.googleusercontent.com';
 
 export const configureGoogleSignIn = () => {
   try {

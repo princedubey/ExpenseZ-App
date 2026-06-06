@@ -79,12 +79,21 @@ export default function SettingsScreen() {
     try {
       setSyncing(true);
       
-      let idToken: string | undefined;
-      let userInfo: any;
+      let idToken: string | null = null;
+      let userInfo: any = null;
 
       if (isGoogleSignInAvailable()) {
-        userInfo = await signInWithGoogle();
-        idToken = userInfo?.idToken;
+        const response = await signInWithGoogle();
+        if (response && response.type === 'success' && response.data) {
+          userInfo = response.data;
+          idToken = response.data.idToken;
+        } else if (response && response.idToken) {
+          userInfo = response;
+          idToken = response.idToken;
+        } else if (response?.type === 'cancelled') {
+          showToast('Sync cancelled', 'info');
+          return false;
+        }
       } else {
         Alert.alert(
           'Google Cloud Sync',
@@ -99,7 +108,7 @@ export default function SettingsScreen() {
         showToast('Google account connected successfully!', 'success');
         return true;
       } else {
-        throw new Error('Google Sign-In was cancelled or failed to return credentials.');
+        throw new Error('Google Sign-In failed to return credentials.');
       }
     } catch (error: any) {
       console.error('[Settings] Connect Google error:', error);
