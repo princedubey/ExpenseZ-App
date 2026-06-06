@@ -1,12 +1,11 @@
-import { AuthSlice, StoreSlice, AuthTokens, User } from '../types';
-import api, { setTokenHandlers } from '../api';
+import { AuthSlice, StoreSlice, User } from '../types';
+import { setTokenHandlers } from '../api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CREDENTIALS_KEY = '@auth_credentials';
-const TOKENS_KEY = '@auth_tokens';
+const SESSION_KEY = '@auth_user_session';
 
 export const createAuthSlice: StoreSlice<AuthSlice> = (set, get) => {
-  // Initialize API token handlers
+  // Initialize API token handlers for compatibility
   setTokenHandlers(
     () => get().tokens?.accessToken || undefined,
     () => get().refreshToken(),
@@ -14,159 +13,157 @@ export const createAuthSlice: StoreSlice<AuthSlice> = (set, get) => {
   );
 
   return {
-  user: null,
-  isAuthenticated: false,
+    user: null,
+    isAuthenticated: false,
     tokens: { accessToken: null, refreshToken: null },
     loading: false,
     error: null,
 
     login: async (email: string, password: string, rememberMe: boolean = true) => {
-    try {
+      throw new Error('Email/Password login is deprecated. Please use Google Sign-In or Continue as Guest.');
+    },
+
+    register: async (email: string, password: string, name: string) => {
+      throw new Error('Registration is deprecated. Please use Google Sign-In or Continue as Guest.');
+    },
+
+    loginWithGoogle: async (idToken: string, userInfo?: any) => {
+      try {
         set({ loading: true, error: null });
-      const response = await api.post('/api/auth/login', { email, password });
-      const { user, accessToken, refreshToken } = response.data;
-        
-        // Save credentials and tokens if remember me is checked
-        if (rememberMe) {
-          await AsyncStorage.setItem(CREDENTIALS_KEY, JSON.stringify({ email, password }));
-          await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify({ accessToken, refreshToken }));
-        } else {
-          // Clear any stored credentials if remember me is unchecked
-          await AsyncStorage.removeItem(CREDENTIALS_KEY);
-          await AsyncStorage.removeItem(TOKENS_KEY);
-        }
-        
-      set({ 
-        user, 
-        isAuthenticated: true,
-          tokens: { accessToken, refreshToken },
-          loading: false
-      });
-      } catch (error: any) {
-      console.error('Login error:', error);
-        set({ 
-          loading: false, 
-          error: error?.response?.data?.message || 'Login failed'
+
+        const googleUser: User = {
+          id: userInfo?.user?.id || `g_${Date.now()}`,
+          name: userInfo?.user?.name || 'Google User',
+          email: userInfo?.user?.email || 'user@gmail.com',
+          profileImage: userInfo?.user?.photo || undefined,
+          avatar: userInfo?.user?.photo || undefined,
+          currency: 'INR',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const session = {
+          user: googleUser,
+          type: 'google',
+          idToken,
+        };
+
+        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+        set({
+          user: googleUser,
+          isAuthenticated: true,
+          tokens: { accessToken: idToken, refreshToken: null },
+          loading: false,
         });
-      throw error;
-    }
-  },
+      } catch (error: any) {
+        console.error('Google login error:', error);
+        set({
+          loading: false,
+          error: error?.message || 'Google login failed',
+        });
+        throw error;
+      }
+    },
 
-  register: async (email: string, password: string, name: string) => {
-    try {
-      const response = await api.post('/api/auth/register', { email, password, name });
-      const { user, accessToken, refreshToken } = response.data;
-        
-        // Save credentials and tokens
-        await AsyncStorage.setItem(CREDENTIALS_KEY, JSON.stringify({ email, password }));
-        await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify({ accessToken, refreshToken }));
-        
-      set({ 
-        user, 
-        isAuthenticated: true,
-        tokens: { accessToken, refreshToken }
-      });
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-  },
+    loginAsGuest: async (name: string = 'Guest') => {
+      try {
+        set({ loading: true, error: null });
 
-  loginWithGoogle: async (token: string) => {
-    try {
-      const response = await api.post('/api/auth/google', { idToken: token });
-      const { user, accessToken, refreshToken } = response.data;
-        
-        // Save tokens
-        await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify({ accessToken, refreshToken }));
-        
-      set({ 
-        user, 
-        isAuthenticated: true,
-        tokens: { accessToken, refreshToken }
-      });
-    } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
-    }
-  },
+        const guestUser: User = {
+          id: `guest_${Date.now()}`,
+          name: name || 'Guest User',
+          email: 'guest@offline.local',
+          currency: 'INR',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
 
-  refreshToken: async () => {
-    try {
-      const response = await api.post('/api/auth/refresh-token');
-      const { accessToken, refreshToken } = response.data;
-        
-        // Update tokens in storage
-        await AsyncStorage.setItem(TOKENS_KEY, JSON.stringify({ accessToken, refreshToken }));
-        
-      set({ 
-        tokens: { accessToken, refreshToken }
-      });
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      // If refresh fails, log the user out
-        set({ user: null, isAuthenticated: false, tokens: { accessToken: null, refreshToken: null } });
-      throw error;
-    }
-  },
+        const session = {
+          user: guestUser,
+          type: 'guest',
+        };
 
-  logout: async () => {
-    try {
-      await api.post('/api/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-        // Clear stored credentials and tokens
-        await AsyncStorage.removeItem(CREDENTIALS_KEY);
-        await AsyncStorage.removeItem(TOKENS_KEY);
-        set({ user: null, isAuthenticated: false, tokens: { accessToken: null, refreshToken: null } });
-    }
-  },
+        await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
 
-  getCurrentUser: async () => {
-    try {
-      const response = await api.get('/api/auth/me');
-      const user = response.data.user;
-      set({ user, isAuthenticated: true });
-    } catch (error) {
-      console.error('Get current user error:', error);
-      set({ user: null, isAuthenticated: false });
-    }
-  },
+        set({
+          user: guestUser,
+          isAuthenticated: true,
+          tokens: { accessToken: 'guest_token', refreshToken: null },
+          loading: false,
+        });
+      } catch (error: any) {
+        console.error('Guest login error:', error);
+        set({
+          loading: false,
+          error: error?.message || 'Guest login failed',
+        });
+        throw error;
+      }
+    },
+
+    refreshToken: async () => {
+      // Client-only mode does not require backend JWT refresh tokens
+    },
+
+    logout: async () => {
+      try {
+        await AsyncStorage.removeItem(SESSION_KEY);
+      } catch (error) {
+        console.error('Logout error:', error);
+      } finally {
+        set({
+          user: null,
+          isAuthenticated: false,
+          tokens: { accessToken: null, refreshToken: null },
+        });
+      }
+    },
+
+    getCurrentUser: async () => {
+      // Managed through loadStoredCredentials on app bootstrap
+    },
 
     loadStoredCredentials: async () => {
       try {
-        const storedCredentials = await AsyncStorage.getItem(CREDENTIALS_KEY);
-        const storedTokens = await AsyncStorage.getItem(TOKENS_KEY);
-        
-        if (storedCredentials && storedTokens) {
-          const { email, password } = JSON.parse(storedCredentials);
-          const { accessToken, refreshToken } = JSON.parse(storedTokens);
-          
-          // Set tokens
-          set({ tokens: { accessToken, refreshToken } });
-          
-          // Try to get current user
-          await get().getCurrentUser();
-          
-          return { email, password };
+        const storedSession = await AsyncStorage.getItem(SESSION_KEY);
+        if (storedSession) {
+          const session = JSON.parse(storedSession);
+          if (session.user) {
+            set({
+              user: session.user,
+              isAuthenticated: true,
+              tokens: {
+                accessToken: session.idToken || 'guest_token',
+                refreshToken: null,
+              },
+            });
+            return { email: session.user.email, password: '' };
+          }
         }
         return null;
       } catch (error) {
-        console.error('Load stored credentials error:', error);
-        // Clear invalid stored credentials
-        await AsyncStorage.removeItem(CREDENTIALS_KEY);
-        await AsyncStorage.removeItem(TOKENS_KEY);
+        console.error('Load stored session error:', error);
+        await AsyncStorage.removeItem(SESSION_KEY);
         return null;
       }
     },
 
     setUser: (user: User | null) => {
-    set({ user, isAuthenticated: !!user });
-  },
+      set({ user, isAuthenticated: !!user });
+      if (user) {
+        AsyncStorage.getItem(SESSION_KEY).then((stored) => {
+          if (stored) {
+            const session = JSON.parse(stored);
+            session.user = user;
+            AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
+          }
+        });
+      }
+    },
 
     setTokens: (tokens: { accessToken: string | null; refreshToken: string | null }) => {
-    set({ tokens });
-  },
+      set({ tokens });
+    },
   };
-}; 
+};

@@ -1,5 +1,7 @@
-import { TransactionSlice, StoreSlice, Transaction } from '../types';
-import api from '../api';
+import { TransactionSlice, StoreSlice, Transaction, TransactionSummary } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const LOCAL_TX_KEY = '@expensez_transactions';
 
 export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) => ({
   transactions: [],
@@ -21,11 +23,65 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
   getUserStats: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/api/dashboard');
-      set({ stats: response.data.data, loading: false });
-      return response.data.data;
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+
+      let cashIn = 0;
+      let cashOut = 0;
+      let investments = 0;
+      let loans = 0;
+
+      const categoryMap: { [key: string]: number } = {};
+
+      allTx.forEach((t) => {
+        const amt = t.amount || 0;
+        if (t.type === 'cash_in') {
+          cashIn += amt;
+        } else if (t.type === 'cash_out') {
+          cashOut += amt;
+          categoryMap[t.category] = (categoryMap[t.category] || 0) + amt;
+        } else if (t.type === 'investment') {
+          investments += amt;
+        } else if (t.type === 'loan') {
+          loans += amt;
+        }
+      });
+
+      const topCategories = Object.keys(categoryMap)
+        .map((cat) => ({
+          category: cat,
+          total: categoryMap[cat]
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      const recentActivity = [...allTx]
+        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+        .slice(0, 10)
+        .map((t) => ({
+          id: t._id || t.id || '',
+          title: t.title || t.note || 'Transaction',
+          amount: t.amount || 0,
+          type: t.type,
+          category: t.category,
+          transactionDate: t.transactionDate,
+          createdAt: t.createdAt
+        }));
+
+      const computedStats = {
+        cashIn,
+        cashOut,
+        investments,
+        loans,
+        savings: cashIn - cashOut,
+        recentActivity,
+        topCategories
+      };
+
+      set({ stats: computedStats, loading: false });
+      return computedStats;
     } catch (error: any) {
-      set({ loading: false, error: error?.response?.data?.message || 'Failed to fetch stats' });
+      console.error('Failed to compute stats:', error);
+      set({ loading: false, error: error?.message || 'Failed to compute stats' });
       throw error;
     }
   },
@@ -42,24 +98,52 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
   }) => {
     set({ loading: true, error: null });
     try {
-      const queryParams = new URLSearchParams();
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
       
-      if (params?.type) queryParams.append('type', params.type);
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
-      if (params?.startDate) queryParams.append('startDate', params.startDate);
-      if (params?.endDate) queryParams.append('endDate', params.endDate);
-      if (params?.category) queryParams.append('category', params.category);
-      if (params?.month) queryParams.append('month', params.month.toString());
-      if (params?.year) queryParams.append('year', params.year.toString());
+      let filtered = [...allTx].sort(
+        (a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+      );
 
-      const response = await api.get(`/api/transactions?${queryParams.toString()}`);
-      const { data, currentPage, totalPages, total, limit } = response.data;
+      if (params?.type) {
+        filtered = filtered.filter((t) => t.type === params.type);
+      }
+      if (params?.category) {
+        filtered = filtered.filter(
+          (t) => t.category.toLowerCase() === params.category!.toLowerCase()
+        );
+      }
+      if (params?.month !== undefined) {
+        filtered = filtered.filter(
+          (t) => new Date(t.transactionDate).getMonth() + 1 === params.month
+        );
+      }
+      if (params?.year !== undefined) {
+        filtered = filtered.filter(
+          (t) => new Date(t.transactionDate).getFullYear() === params.year
+        );
+      }
+      if (params?.startDate) {
+        const start = new Date(params.startDate).getTime();
+        filtered = filtered.filter((t) => new Date(t.transactionDate).getTime() >= start);
+      }
+      if (params?.endDate) {
+        const end = new Date(params.endDate).getTime();
+        filtered = filtered.filter((t) => new Date(t.transactionDate).getTime() <= end);
+      }
+
+      const page = params?.page || 1;
+      const limit = params?.limit || 10;
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit);
       
+      const startIndex = (page - 1) * limit;
+      const paginatedData = filtered.slice(startIndex, startIndex + limit);
+
       set((state) => ({ 
-        transactions: params?.page && params.page > 1 ? [...state.transactions, ...data] : data,
+        transactions: page > 1 ? [...state.transactions, ...paginatedData] : paginatedData,
         pagination: {
-          currentPage,
+          currentPage: page,
           totalPages,
           total,
           limit
@@ -67,8 +151,9 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
         loading: false 
       }));
     } catch (error: any) {
+      console.error('Failed to fetch local transactions:', error);
       set({ 
-        error: error?.response?.data?.message || 'Failed to fetch transactions',
+        error: error?.message || 'Failed to fetch transactions',
         loading: false 
       });
       throw error;
@@ -78,12 +163,17 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
   fetchTransactionById: async (id: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get(`/api/transactions/${id}`);
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+      const tx = allTx.find((t) => (t._id || t.id) === id);
+      if (!tx) {
+        throw new Error('Transaction not found');
+      }
       set({ loading: false });
-      return response.data.data;
+      return tx;
     } catch (error: any) {
       set({ 
-        error: error?.response?.data?.message || 'Failed to fetch transaction',
+        error: error?.message || 'Failed to fetch transaction',
         loading: false 
       });
       throw error;
@@ -91,90 +181,96 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
   },
 
   addTransaction: async (transaction: Omit<Transaction, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => {
-    // Optimistic create: insert a temporary transaction immediately,
-    // replace with server result on success, remove on failure.
-    const tempId = `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const tempTransaction: Transaction = {
-      _id: tempId,
-      user: (get() as any).user || null,
-      title: (transaction as any).title || transaction.note || transaction.category || 'New transaction',
-      note: (transaction as any).note || '',
-      category: (transaction as any).category || '',
-      amount: (transaction as any).amount || 0,
-      type: (transaction as any).type || 'cash_out',
-      source: (transaction as any).source || 'balance',
-      transactionDate: (transaction as any).transactionDate || new Date().toISOString(),
+    const id = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const user = (get() as any).user?.id || 'guest';
+    const newTx: Transaction = {
+      ...transaction,
+      _id: id,
+      id,
+      user,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     } as Transaction;
 
-    // Add temp immediately
-    set((state) => ({ transactions: [tempTransaction, ...state.transactions], error: null }));
-
     try {
-      const response = await api.post('/api/transactions', transaction);
-      const createdTransaction = response.data.data;
+      set({ loading: true, error: null });
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+      
+      const updatedList = [newTx, ...allTx];
+      await AsyncStorage.setItem(LOCAL_TX_KEY, JSON.stringify(updatedList));
 
-      // Replace temp with server-created transaction
       set((state) => ({
-        transactions: state.transactions.map((t) => (t._id === tempId ? createdTransaction : t)),
+        transactions: [newTx, ...state.transactions],
+        loading: false
       }));
 
-      // Refresh stats after adding transaction
       await get().getUserStats();
-      return createdTransaction;
+      return newTx;
     } catch (error: any) {
-      // Remove the temp transaction on failure
-      set((state) => ({
-        transactions: state.transactions.filter((t) => t._id !== tempId),
-        error: error?.response?.data?.message || 'Failed to add transaction',
-      }));
+      set({
+        error: error?.message || 'Failed to add transaction',
+        loading: false
+      });
       throw error;
     }
   },
 
   updateTransaction: async (id: string, transaction: Omit<Transaction, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => {
-    // Optimistic update: apply patch locally, rollback on failure
-    const prev = get().transactions.find((t) => (t.id || t._id) === id);
-    if (!prev) throw new Error('Transaction not found');
-
-    const optimistic: Transaction = { ...prev, ...transaction, updatedAt: new Date().toISOString() } as Transaction;
-
-    // Apply optimistic update
-    set((state) => ({ transactions: state.transactions.map((t) => ((t.id || t._id) === id ? optimistic : t)), error: null }));
-
     try {
-      const response = await api.put(`/api/transactions/${id}`, transaction);
-      const updatedTransaction = response.data.data;
+      set({ loading: true, error: null });
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+      
+      const index = allTx.findIndex((t) => (t._id || t.id) === id);
+      if (index === -1) {
+        throw new Error('Transaction not found');
+      }
 
-      // Replace with authoritative server result
-      set((state) => ({ transactions: state.transactions.map((t) => ((t.id || t._id) === id ? updatedTransaction : t)) }));
-      return updatedTransaction;
+      const updatedTx: Transaction = {
+        ...allTx[index],
+        ...transaction,
+        updatedAt: new Date().toISOString()
+      };
+
+      allTx[index] = updatedTx;
+      await AsyncStorage.setItem(LOCAL_TX_KEY, JSON.stringify(allTx));
+
+      set((state) => ({
+        transactions: state.transactions.map((t) => ((t._id || t.id) === id ? updatedTx : t)),
+        loading: false
+      }));
+
+      await get().getUserStats();
+      return updatedTx;
     } catch (error: any) {
-      // Rollback to previous state
-      set((state) => ({ transactions: state.transactions.map((t) => ((t.id || t._id) === id ? prev : t)), error: error?.response?.data?.message || 'Failed to update transaction' }));
+      set({
+        error: error?.message || 'Failed to update transaction',
+        loading: false
+      });
       throw error;
     }
   },
 
   deleteTransaction: async (id: string) => {
-    // Optimistic delete: remove locally first, restore on failure
-    const current = get().transactions;
-    const index = current.findIndex((t) => (t.id || t._id) === id);
-    if (index === -1) throw new Error('Transaction not found');
-    const removed = current[index];
-
-    // Remove optimistically
-    set((state) => ({ transactions: state.transactions.filter((t) => (t.id || t._id) !== id), error: null }));
-
     try {
-      await api.delete(`/api/transactions/${id}`);
+      set({ loading: true, error: null });
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+      
+      const filtered = allTx.filter((t) => (t._id || t.id) !== id);
+      await AsyncStorage.setItem(LOCAL_TX_KEY, JSON.stringify(filtered));
+
+      set((state) => ({
+        transactions: state.transactions.filter((t) => (t._id || t.id) !== id),
+        loading: false
+      }));
+
+      await get().getUserStats();
     } catch (error: any) {
-      // Restore on failure
-      set((state) => {
-        const copy = [...state.transactions];
-        copy.splice(index, 0, removed);
-        return { transactions: copy, error: error?.response?.data?.message || 'Failed to delete transaction' };
+      set({
+        error: error?.message || 'Failed to delete transaction',
+        loading: false
       });
       throw error;
     }
@@ -183,14 +279,65 @@ export const createTransactionSlice: StoreSlice<TransactionSlice> = (set, get) =
   fetchTransactionSummary: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await api.get('/api/transactions/summary');
-      set({ summary: response.data.data, loading: false });
-    } catch (error: any) {
-      set({ 
-        error: error?.response?.data?.message || 'Failed to fetch summary',
-        loading: false 
+      const stored = await AsyncStorage.getItem(LOCAL_TX_KEY);
+      const allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+
+      let cashIn = 0;
+      let cashOut = 0;
+      let investments = 0;
+      let loans = 0;
+
+      const categoryMap: { [key: string]: number } = {};
+
+      allTx.forEach((t) => {
+        const amt = t.amount || 0;
+        if (t.type === 'cash_in') {
+          cashIn += amt;
+        } else if (t.type === 'cash_out') {
+          cashOut += amt;
+          categoryMap[t.category] = (categoryMap[t.category] || 0) + amt;
+        } else if (t.type === 'investment') {
+          investments += amt;
+        } else if (t.type === 'loan') {
+          loans += amt;
+        }
       });
+
+      const topCategories = Object.keys(categoryMap)
+        .map((cat) => ({
+          category: cat,
+          total: categoryMap[cat]
+        }))
+        .sort((a, b) => b.total - a.total);
+
+      const recentActivity = [...allTx]
+        .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime())
+        .slice(0, 10)
+        .map((t) => ({
+          id: t._id || t.id || '',
+          title: t.title || t.note || 'Transaction',
+          amount: t.amount || 0,
+          type: t.type,
+          category: t.category,
+          transactionDate: t.transactionDate,
+          createdAt: t.createdAt
+        }));
+
+      const computedSummary: TransactionSummary = {
+        cashIn,
+        cashOut,
+        investments,
+        loans,
+        savings: cashIn - cashOut,
+        recentActivity,
+        topCategories
+      };
+
+      set({ summary: computedSummary, loading: false });
+    } catch (error: any) {
+      console.error('Failed to compute summary:', error);
+      set({ loading: false, error: error?.message || 'Failed to compute summary' });
       throw error;
     }
   },
-}); 
+});

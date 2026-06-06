@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useColors } from '@/constants/Colors';
@@ -12,7 +12,7 @@ import { Typography } from '@/constants/Typography';
 import { useStore } from '@/store';
 import { useToast } from '@/contexts/ToastContext';
 import type { StoreState, Transaction } from '@/store/types';
-import api from '@/store/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCategoryColor } from '@/constants/Categories';
 import { Input } from '@/components/ui/Input';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -687,15 +687,15 @@ export default function TransactionsScreen() {
   const activeFilterLabel = getFilterLabel(activeFilter, customDateRange);
 
   const fetchAllTransactionsForExport = useCallback(async () => {
-    const queryParams = new URLSearchParams();
-    queryParams.append('page', '1');
-    queryParams.append('limit', '1000');
-    if (activeFilter !== 'all') {
-      queryParams.append('type', activeFilter);
-    }
+    const stored = await AsyncStorage.getItem('@expensez_transactions');
+    let allTx: Transaction[] = stored ? JSON.parse(stored) : [];
+    
+    allTx = allTx.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
 
-    const response = await api.get(`/api/transactions?${queryParams.toString()}`);
-    return (response.data?.data || []) as Transaction[];
+    if (activeFilter !== 'all') {
+      allTx = allTx.filter((t) => t.type === activeFilter);
+    }
+    return allTx;
   }, [activeFilter]);
 
   const handleExport = useCallback(async (format: ExportFormat) => {
@@ -825,7 +825,7 @@ export default function TransactionsScreen() {
         <View style={styles.bannerRow}>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.gray[500] }]}>BALANCE</Text>
-            <Text style={[styles.summaryAmount, { color: colors.primary[600] }]} numberOfLines={1}>
+            <Text style={[styles.summaryAmount, { color: colors.light.text }]} numberOfLines={1}>
               {formatCurrency(stats?.savings || 0)}
             </Text>
           </View>
@@ -852,14 +852,14 @@ export default function TransactionsScreen() {
         <View style={styles.bannerRow}>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.gray[500] }]}>INVESTMENTS</Text>
-            <Text style={[styles.summaryAmount, { color: colors.primary[500] }]} numberOfLines={1}>
+            <Text style={[styles.summaryAmount, { color: colors.warning[600] }]} numberOfLines={1}>
               {formatCurrency(stats?.investments || 0)}
             </Text>
           </View>
           <View style={[styles.summaryDivider, { backgroundColor: colors.light.border }]} />
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryLabel, { color: colors.gray[500] }]}>LOANS & EMI</Text>
-            <Text style={[styles.summaryAmount, { color: colors.warning[600] }]} numberOfLines={1}>
+            <Text style={[styles.summaryAmount, { color: colors.accent[600] }]} numberOfLines={1}>
               {formatCurrency(stats?.loans || 0)}
             </Text>
           </View>
@@ -1340,7 +1340,13 @@ export default function TransactionsScreen() {
                     style={[
                       styles.transactionAmount,
                       {
-                        color: isNegative ? colors.error[600] : colors.success[600],
+                        color: item.type === 'investment'
+                          ? colors.warning[600]
+                          : item.type === 'loan'
+                          ? colors.accent[600]
+                          : item.type === 'cash_out'
+                          ? colors.error[600]
+                          : colors.success[600],
                       },
                     ]}
                   >

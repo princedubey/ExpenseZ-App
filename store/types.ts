@@ -33,7 +33,8 @@ export interface AuthSlice {
   loading: boolean;
   error: string | null;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithGoogle: (idToken: string, userInfo?: any) => Promise<void>;
+  loginAsGuest: (name?: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   loadStoredCredentials: () => Promise<{ email: string; password: string } | null>;
   logout: () => Promise<void>;

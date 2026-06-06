@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/Colors';
@@ -33,6 +34,33 @@ export default function AddTransactionScreen() {
     amount?: string;
     category?: string;
   }>({});
+  const [existingNotes, setExistingNotes] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadNotes = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@expensez_transactions');
+        if (stored) {
+          const allTx: any[] = JSON.parse(stored);
+          const notes = allTx
+            .map((t) => t.note || t.title)
+            .filter((n): n is string => typeof n === 'string' && n.trim().length > 0);
+          
+          const uniqueNotes = Array.from(new Set(notes));
+          setExistingNotes(uniqueNotes);
+        }
+      } catch (error) {
+        console.error('[add.tsx] Failed to load notes:', error);
+      }
+    };
+    loadNotes();
+  }, []);
+
+  const filteredSuggestions = note.trim()
+    ? existingNotes
+        .filter((n) => n.toLowerCase().includes(note.toLowerCase()) && n.toLowerCase() !== note.toLowerCase())
+        .slice(0, 8)
+    : existingNotes.slice(0, 8);
 
   const isEditMode = !!params.id && params.id !== 'undefined';
 
@@ -227,7 +255,7 @@ export default function AddTransactionScreen() {
             {[
               { label: 'Cash Out', value: 'cash_out' as const, activeColor: colors.error[600], shadowColor: colors.error[600] },
               { label: 'Cash In', value: 'cash_in' as const, activeColor: colors.success[600], shadowColor: colors.success[600] },
-              { label: 'Investment', value: 'investment' as const, activeColor: colors.primary[600], shadowColor: colors.primary[600] },
+              { label: 'Investment', value: 'investment' as const, activeColor: colors.warning[600], shadowColor: colors.warning[600] },
             ].map((option) => {
               const isActive = type === option.value;
               return (
@@ -277,6 +305,34 @@ export default function AddTransactionScreen() {
                 containerStyle={{ marginBottom: 0 }}
                 labelStyle={styles.fieldLabel}
               />
+              {filteredSuggestions.length > 0 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.suggestionsContent}
+                  style={styles.suggestionsContainer}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {filteredSuggestions.map((suggestion, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.suggestionChip,
+                        {
+                          backgroundColor: colors.light.background,
+                          borderColor: colors.light.border,
+                        },
+                      ]}
+                      onPress={() => setNote(suggestion)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.suggestionText, { color: colors.gray[600] }]}>
+                        {suggestion}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
             </View>
 
             {/* Date Field */}
@@ -557,5 +613,22 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: Metrics.md,
+  },
+  suggestionsContainer: {
+    marginTop: 8,
+  },
+  suggestionsContent: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  suggestionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  suggestionText: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.medium,
   },
 });

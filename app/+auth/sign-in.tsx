@@ -10,18 +10,15 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mail, Lock, Wallet } from 'lucide-react-native';
+import { ShieldCheck, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from '@/constants/Colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import Typography from '@/constants/Typography';
 import Metrics from '@/constants/Metrics';
-import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { useStore } from '@/store';
 import { useToast } from '@/contexts/ToastContext';
-import debounce from 'lodash/debounce';
-import Checkbox from '@/components/ui/Checkbox';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import {
@@ -38,33 +35,16 @@ export default function SignInScreen() {
   const router = useRouter();
   const colors = useColors();
   const { isDark } = useTheme();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [isCooldown, setIsCooldown] = useState(false);
-  const login = useStore((state) => state.login);
-  const loadStoredCredentials = useStore((state) => state.loadStoredCredentials);
+  const loginWithGoogle = useStore((state) => state.loginWithGoogle);
+  const loginAsGuest = useStore((state) => state.loginAsGuest);
   const { showToast } = useToast();
   const googleSignInAvailable = isGoogleSignInAvailable();
 
-  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    webClientId,
-    responseType: 'id_token',
-  });
-
-  useEffect(() => {
-    if (googleRequest?.redirectUri) {
-      console.log('Google Auth Redirect URI:', googleRequest.redirectUri);
-    }
-  }, [googleRequest]);
-
-  const handleGoogleLogin = useCallback(async (idToken: string) => {
+  const handleGoogleLogin = useCallback(async (idToken: string, userInfo?: any) => {
     try {
       setIsLoading(true);
-      const loginWithGoogle = useStore.getState().loginWithGoogle;
-      await loginWithGoogle(idToken);
+      await loginWithGoogle(idToken, userInfo);
       showToast('Signed in with Google', 'success');
       router.replace('/(tabs)');
     } catch (error) {
@@ -73,101 +53,29 @@ export default function SignInScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [router, showToast]);
+  }, [loginWithGoogle, router, showToast]);
 
-  useEffect(() => {
-    if (googleResponse?.type === 'success') {
-      const { authentication, params } = googleResponse;
-      const idToken = params?.id_token || authentication?.idToken;
-      if (idToken) {
-        handleGoogleLogin(idToken);
-      } else {
-        console.error('No ID token found in auth session response:', googleResponse);
-        showToast('Google authentication failed: missing token', 'error');
-      }
-    } else if (googleResponse?.type === 'error') {
-      console.error('Google auth session error:', googleResponse.error);
-      showToast('Google sign-in failed', 'error');
+  const handleGuestLogin = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      await loginAsGuest('Guest User');
+      showToast('Welcome! Operating in Offline Guest Mode.', 'success');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Guest login failed:', error);
+      showToast('Failed to enter guest mode', 'error');
+    } finally {
+      setIsLoading(false);
     }
-  }, [googleResponse, handleGoogleLogin, showToast]);
+  }, [loginAsGuest, router, showToast]);
 
   useEffect(() => {
-    const loadCredentials = async () => {
-      try {
-        const credentials = await loadStoredCredentials();
-        if (credentials) {
-          setEmail(credentials.email);
-          setPassword(credentials.password);
-          handleSignIn(credentials.email, credentials.password);
-        }
-      } catch (error) {
-        console.error('Error loading stored credentials:', error);
-      }
-    };
-
-    loadCredentials();
     try {
       configureGoogleSignIn();
     } catch (e: unknown) {
       console.warn('Google Sign-In config error:', String(e));
     }
   }, []);
-
-  const validateForm = useCallback(() => {
-    const newErrors: { email?: string; password?: string } = {};
-    if (!email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    if (!password) {
-      newErrors.password = 'Password is required';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }, [email, password]);
-
-  const handleSignIn = useCallback(
-    async (emailToUse = email, passwordToUse = password) => {
-      if (isCooldown) {
-        showToast('Please wait before trying again', 'error');
-        return;
-      }
-
-      if (validateForm()) {
-        try {
-          setIsLoading(true);
-          await login(emailToUse, passwordToUse, rememberMe);
-          showToast('Welcome back! You have successfully signed in.', 'success');
-          setEmail('');
-          setPassword('');
-          router.replace('/(tabs)');
-        } catch (error: any) {
-          if (error?.response?.status === 401 || error?.response?.status === 404) {
-            showToast('Invalid email or password', 'error');
-          } else if (error?.response?.status === 429) {
-            showToast('Too many attempts. Please wait a moment.', 'error');
-            setIsCooldown(true);
-            setTimeout(() => setIsCooldown(false), 30000);
-          } else {
-            showToast('An error occurred. Please try again.', 'error');
-          }
-          console.error('Login error:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      }
-    },
-    [email, password, isCooldown, login, router, showToast, rememberMe, validateForm]
-  );
-
-  const debouncedSignIn = useCallback(
-    debounce(() => handleSignIn(), 800, { leading: true, trailing: false }),
-    [handleSignIn]
-  );
-
-  const navigateToSignUp = () => router.push('/+auth/sign-up');
-  const navigateToForgotPassword = () => router.push('/+auth/forgot-password');
 
   return (
     <View style={[styles.container, { backgroundColor: colors.light.background }]}>
@@ -191,71 +99,33 @@ export default function SignInScreen() {
                 style={{ width: 44, height: 44, resizeMode: 'contain' }} 
               />
             </View>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to access your dashboard</Text>
+            <Text style={styles.title}>ExpenseZ</Text>
+            <Text style={styles.subtitle}>Personal. Private. Decentralized.</Text>
           </View>
 
-          {/* Floating Form Card */}
+          {/* Core Sign In Actions */}
           <View style={[styles.card, { backgroundColor: colors.light.card }]}> 
             <View style={styles.form}>
-              <Input
-                label="Email"
-                placeholder="hello@you.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-                error={errors.email}
-                leftIcon={<Mail size={Metrics.iconSize.sm} color={colors.gray[500]} />}
-                containerStyle={{ backgroundColor: colors.light.input, borderColor: colors.light.inputBorder }}
-                editable={!isCooldown}
-              />
+              <Text style={[styles.privacyHeadline, { color: colors.light.text }]}>
+                Your Financial Privacy First
+              </Text>
+              <Text style={[styles.privacyDescription, { color: colors.gray[500] }]}>
+                We do not store your data on our servers. All transactions and budgets live safely on your device.
+              </Text>
 
-              <Input
-                label="Password"
-                placeholder="Your secure password"
-                value={password}
-                onChangeText={setPassword}
-                error={errors.password}
-                leftIcon={<Lock size={Metrics.iconSize.sm} color={colors.gray[500]} />}
-                containerStyle={{ backgroundColor: colors.light.input, borderColor: colors.light.inputBorder }}
-                isPassword
-                editable={!isCooldown}
-              />
+              <View style={styles.buttonSpacing} />
 
-              <View style={styles.rememberRow}>
-                <Checkbox value={rememberMe} onValueChange={setRememberMe} label="Remember me" disabled={isCooldown} />
-                <TouchableOpacity onPress={navigateToForgotPassword} disabled={isCooldown}>
-                  <Text style={[styles.forgotPasswordText, { color: colors.primary[600] }]}>Forgot?</Text>
-                </TouchableOpacity>
-              </View>
-
-              <Button
-                title={isCooldown ? 'Please wait...' : 'Sign In'}
-                onPress={debouncedSignIn}
-                loading={isLoading}
-                fullWidth
-                variant="primary"
-                size="lg"
-                style={{ borderRadius: Metrics.borderRadius.lg, marginTop: Metrics.md, shadowColor: colors.primary[600], shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 }}
-                textStyle={{ fontSize: Metrics.fontSizes.md + 1 }}
-                disabled={isCooldown}
-              />
-              <View style={styles.dividerRow}>
-                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
-                <Text style={[styles.dividerText, { color: colors.gray[500] }]}>OR</Text>
-                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
-              </View>
-              <Button
-                title="Continue with Google"
-                onPress={async () => {
-                  if (googleSignInAvailable) {
+              {/* Google Sign In for Sync */}
+              {googleSignInAvailable ? (
+                <Button
+                  title="Continue with Google"
+                  onPress={async () => {
                     try {
                       setIsLoading(true);
                       const userInfo: any = await signInWithGoogle();
                       const idToken: string | undefined = userInfo?.idToken;
                       if (idToken) {
-                        await handleGoogleLogin(idToken);
+                        await handleGoogleLogin(idToken, userInfo);
                       }
                     } catch (error) {
                       console.error('Google sign-in failed:', error);
@@ -263,31 +133,88 @@ export default function SignInScreen() {
                     } finally {
                       setIsLoading(false);
                     }
-                  } else {
-                    // Use web/expo-auth-session fallback
-                    promptGoogleAsync();
-                  }
-                }}
+                  }}
+                  fullWidth
+                  icon={<GoogleIcon size={18} />}
+                  iconPosition="left"
+                  variant="primary"
+                  size="lg"
+                  loading={isLoading}
+                  style={{ borderRadius: Metrics.borderRadius.lg }}
+                />
+              ) : (
+                <WebGoogleSignInButton onLogin={handleGoogleLogin} colors={colors} isLoading={isLoading} />
+              )}
+
+              <View style={styles.dividerRow}>
+                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
+                <Text style={[styles.dividerText, { color: colors.gray[500] }]}>OR</Text>
+                <View style={[styles.divider, { backgroundColor: colors.light.border }]} />
+              </View>
+
+              {/* Offline Guest Login */}
+              <Button
+                title="Continue as Guest (Offline)"
+                onPress={handleGuestLogin}
                 fullWidth
-                icon={<GoogleIcon size={18} />}
+                icon={<User size={18} color={colors.light.text} />}
                 iconPosition="left"
                 variant="outline"
                 size="lg"
+                disabled={isLoading}
                 style={{ borderRadius: Metrics.borderRadius.lg, backgroundColor: 'transparent' }}
                 textStyle={{ color: colors.light.text }}
               />
 
-              <View style={styles.footerRow}>
-                <Text style={[styles.footerText, { color: colors.gray[600] }]}>Don{"'"}t have an account?</Text>
-                <TouchableOpacity onPress={navigateToSignUp} disabled={isCooldown}>
-                  <Text style={[styles.signUpText, { color: colors.primary[600] }]}>Create Account</Text>
-                </TouchableOpacity>
+              <View style={[styles.privacyCard, { backgroundColor: colors.gray[50], borderColor: colors.light.border }]}>
+                <ShieldCheck size={20} color={colors.primary[600]} style={{ marginRight: Metrics.sm }} />
+                <Text style={[styles.privacyNote, { color: colors.gray[600] }]}>
+                  Google account is only used to sync a secure CSV backup file on your Google Drive.
+                </Text>
               </View>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+  );
+}
+
+interface WebGoogleSignInButtonProps {
+  onLogin: (idToken: string) => Promise<void>;
+  colors: any;
+  isLoading: boolean;
+}
+
+function WebGoogleSignInButton({ onLogin, colors, isLoading }: WebGoogleSignInButtonProps) {
+  const [googleRequest, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
+    webClientId,
+    responseType: 'id_token',
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { authentication, params } = googleResponse;
+      const idToken = params?.id_token || authentication?.idToken;
+      if (idToken) {
+        onLogin(idToken);
+      }
+    }
+  }, [googleResponse, onLogin]);
+
+  return (
+    <Button
+      title="Continue with Google"
+      onPress={() => promptGoogleAsync()}
+      fullWidth
+      icon={<GoogleIcon size={18} />}
+      iconPosition="left"
+      variant="primary"
+      size="lg"
+      loading={isLoading}
+      style={{ borderRadius: Metrics.borderRadius.lg }}
+    />
   );
 }
 
@@ -348,13 +275,28 @@ const styles = StyleSheet.create({
     shadowRadius: 20, 
     elevation: 10, 
   },
-  form: { width: '100%' },
-  rememberRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Metrics.xs, marginBottom: Metrics.lg },
-  forgotPasswordText: { fontFamily: Typography.fontFamily.semiBold, fontSize: Metrics.fontSizes.sm },
+  form: { width: '100%', alignItems: 'center' },
+  privacyHeadline: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.lg,
+    textAlign: 'center',
+    marginBottom: Metrics.sm,
+  },
+  privacyDescription: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Metrics.fontSizes.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Metrics.md,
+  },
+  buttonSpacing: {
+    height: Metrics.md,
+  },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginVertical: Metrics.lg,
+    width: '100%',
   },
   divider: {
     flex: 1,
@@ -365,7 +307,19 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.medium,
     fontSize: Metrics.fontSizes.sm,
   },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: Metrics.xl },
-  footerText: { fontFamily: Typography.fontFamily.regular, fontSize: Metrics.fontSizes.md, marginRight: Metrics.xs },
-  signUpText: { fontFamily: Typography.fontFamily.bold, fontSize: Metrics.fontSizes.md },
+  privacyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Metrics.borderRadius.md,
+    borderWidth: 1,
+    padding: Metrics.md,
+    marginTop: Metrics.xl,
+    width: '100%',
+  },
+  privacyNote: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Metrics.fontSizes.xs - 1,
+    flex: 1,
+    lineHeight: 16,
+  },
 });

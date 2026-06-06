@@ -11,38 +11,59 @@ const getGoogleSignin = () => {
     return null;
   }
 
-  if (!googleSigninModule) {
-    googleSigninModule = require('@react-native-google-signin/google-signin').GoogleSignin;
+  try {
+    if (!googleSigninModule) {
+      googleSigninModule = require('@react-native-google-signin/google-signin').GoogleSignin;
+    }
+    return googleSigninModule;
+  } catch (e) {
+    console.warn('Failed to require @react-native-google-signin/google-signin:', e);
+    return null;
   }
-
-  return googleSigninModule;
 };
 
-export const webClientId = '129393014646-vtn4vfso08jc7o29ipsut5vur8s5co2s.apps.googleusercontent.com';
+export const webClientId = '129393014646-tcp47sfei2si5irkdr7hf5s069ggq5l4.apps.googleusercontent.com';
 
 export const configureGoogleSignIn = () => {
-  const GoogleSignin = getGoogleSignin();
+  try {
+    const GoogleSignin = getGoogleSignin();
 
-  if (!GoogleSignin) {
+    if (!GoogleSignin) {
+      return false;
+    }
+
+    GoogleSignin.configure({
+      webClientId,
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
+    });
+
+    return true;
+  } catch (e) {
+    console.warn('Google Sign-In configure failed:', e);
     return false;
   }
-
-  GoogleSignin.configure({
-    webClientId,
-  });
-
-  return true;
 };
 
-export const isGoogleSignInAvailable = () => Boolean(getGoogleSignin());
+export const isGoogleSignInAvailable = () => {
+  try {
+    return Boolean(getGoogleSignin());
+  } catch (e) {
+    return false;
+  }
+};
 
 export const signInWithGoogle = async (): Promise<any> => {
-  const GoogleSignin = getGoogleSignin();
+  try {
+    const GoogleSignin = getGoogleSignin();
 
-  if (!GoogleSignin) {
-    throw new Error('Google Sign-In requires a development build, not Expo Go.');
+    if (!GoogleSignin) {
+      throw new Error('Google Sign-In requires a development build, not Expo Go.');
+    }
+
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    return GoogleSignin.signIn() as any;
+  } catch (e) {
+    console.error('signInWithGoogle native call failed:', e);
+    throw e;
   }
-
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  return GoogleSignin.signIn() as any;
 };

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Plus, TrendingUp, TrendingDown, Receipt, PieChart as PieChartIcon, Wallet, ArrowDown, ArrowUp, ChevronRight } from 'lucide-react-native';
 import { useColors } from '@/constants/Colors';
+import { useTheme } from '@/contexts/ThemeContext';
 import Metrics from '@/constants/Metrics';
 import Typography from '@/constants/Typography';
 import Avatar from '@/components/ui/Avatar';
@@ -31,6 +32,7 @@ interface TopCategory {
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
+  const { isDark } = useTheme();
   
   // Store selectors
   const stats = useStore((state: StoreState) => state.stats);
@@ -122,8 +124,8 @@ export default function HomeScreen() {
                 {stats ? formatCurrency(stats.savings) : '₹0'}
               </Text>
             </View>
-            <View style={[styles.balanceIconCircle, { backgroundColor: colors.primary[50] }]}>
-              <Wallet size={20} color={colors.primary[600]} />
+            <View style={[styles.balanceIconCircle, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : colors.primary[50] }]}>
+              <Wallet size={20} color={isDark ? '#ffffff' : colors.primary[600]} />
             </View>
           </View>
 

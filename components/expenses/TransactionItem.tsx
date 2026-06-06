@@ -55,10 +55,12 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
           <Text
             style={[
               styles.amount,
-              type === 'cash_out' || (type === 'investment' && source !== 'existing')
-                ? { color: colors.error[600] }
+              type === 'investment'
+                ? { color: colors.warning[600] }
                 : type === 'loan'
                 ? { color: colors.accent[600] }
+                : type === 'cash_out'
+                ? { color: colors.error[600] }
                 : { color: colors.success[600] },
             ]}
           >

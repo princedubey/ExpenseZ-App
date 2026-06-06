@@ -10,7 +10,7 @@ import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import {
   ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Landmark,
   ShieldCheck, Percent, Lightbulb, Wallet, Calendar, AlertCircle,
-  Target, Zap, Award, Coffee, Home, Car,
+  Target, Zap, Award, Coffee, Home, Car, Trophy, CheckCircle,
 } from 'lucide-react-native';
 import { getCategoryColor } from '@/constants/Categories';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,11 +28,24 @@ function calcWealthScore(savingsRate: number, investmentRatio: number, debtRatio
 }
 
 function getWealthLevel(score: number) {
-  if (score >= 75) return { label: 'Excellent', emoji: '🏆', colors: ['#059669', '#10b981'] };
-  if (score >= 55) return { label: 'Good', emoji: '✅', colors: ['#0284c7', '#38bdf8'] };
-  if (score >= 35) return { label: 'Fair', emoji: '⚡', colors: ['#d97706', '#f59e0b'] };
-  return { label: 'Needs Work', emoji: '🔔', colors: ['#dc2626', '#ef4444'] };
+  if (score >= 75) return { label: 'Excellent', iconName: 'trophy' as const, colors: ['#059669', '#10b981'] };
+  if (score >= 55) return { label: 'Good', iconName: 'check-circle' as const, colors: ['#0284c7', '#38bdf8'] };
+  if (score >= 35) return { label: 'Fair', iconName: 'zap' as const, colors: ['#d97706', '#f59e0b'] };
+  return { label: 'Needs Work', iconName: 'alert-circle' as const, colors: ['#dc2626', '#ef4444'] };
 }
+
+const WealthIcon = ({ type, size, color }: { type: 'trophy' | 'check-circle' | 'zap' | 'alert-circle'; size: number; color: string }) => {
+  switch (type) {
+    case 'trophy':
+      return <Trophy size={size} color={color} />;
+    case 'check-circle':
+      return <CheckCircle size={size} color={color} />;
+    case 'zap':
+      return <Zap size={size} color={color} />;
+    case 'alert-circle':
+      return <AlertCircle size={size} color={color} />;
+  }
+};
 
 // ─── 50-30-20 helper ──────────────────────────────────────────────────────────
 function get503020(income: number, expense: number, investments: number, loans: number) {
@@ -274,8 +287,8 @@ export default function AnalyticsScreen() {
               <Text style={styles.heroAmount}>{formatCurrency(netBalance)}</Text>
             </View>
             <View style={[styles.wealthBadge, { backgroundColor: `${wealthLevel.colors[0]}22`, borderColor: wealthLevel.colors[0] + '55' }]}>
-              <Text style={styles.wealthEmoji}>{wealthLevel.emoji}</Text>
-              <Text style={[styles.wealthBadgeText, { color: '#fff' }]}>{wealthLevel.label}</Text>
+              <WealthIcon type={wealthLevel.iconName} size={13} color={wealthLevel.colors[1]} />
+              <Text style={[styles.wealthBadgeText, { color: '#fff', marginLeft: 2 }]}>{wealthLevel.label}</Text>
             </View>
           </View>
           <View style={styles.heroDivider} />
@@ -325,7 +338,7 @@ export default function AnalyticsScreen() {
                 <Text style={[styles.cardTitle, { color: colors.light.text }]}>Wealth Score</Text>
               </View>
               <View style={styles.wealthScoreRow}>
-                <View style={styles.wealthScoreCircle}>
+                <View style={[styles.wealthScoreCircleContainer, { borderColor: wealthLevel.colors[0] + '22' }]}>
                   <LinearGradient
                     colors={wealthLevel.colors as any}
                     style={styles.wealthScoreGradient}
@@ -336,18 +349,27 @@ export default function AnalyticsScreen() {
                   </LinearGradient>
                 </View>
                 <View style={styles.wealthScoreDetails}>
-                  <Text style={[styles.wealthScoreLevel, { color: wealthLevel.colors[0] }]}>{wealthLevel.emoji} {wealthLevel.label}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <WealthIcon type={wealthLevel.iconName} size={16} color={wealthLevel.colors[0]} />
+                    <Text style={[styles.wealthScoreLevel, { color: wealthLevel.colors[0], marginBottom: 0 }]}>
+                      {wealthLevel.label}
+                    </Text>
+                  </View>
                   <Text style={[styles.wealthScoreHint, { color: colors.gray[500] }]}>Based on savings rate, investment ratio, and debt load.</Text>
                   <View style={styles.wealthScoreBreakdown}>
                     {[
                       { label: 'Savings', pct: savingsRate, color: colors.success[600] },
-                      { label: 'Investing', pct: investmentRatio, color: colors.primary[500] },
-                      { label: 'Debt Load', pct: debtRatio, color: colors.error[500] },
+                      { label: 'Investing', pct: investmentRatio, color: colors.warning[600] },
+                      { label: 'Debt Load', pct: debtRatio, color: colors.accent[600] },
                     ].map((item) => (
                       <View key={item.label} style={styles.miniStatRow}>
-                        <View style={[styles.miniDot, { backgroundColor: item.color }]} />
                         <Text style={[styles.miniStatLabel, { color: colors.gray[500] }]}>{item.label}</Text>
-                        <Text style={[styles.miniStatValue, { color: item.color }]}>{item.pct.toFixed(1)}%</Text>
+                        <View style={styles.miniProgressBarContainer}>
+                          <View style={[styles.miniProgressBarBg, { backgroundColor: isDark ? '#1e293b' : '#f1f5f9' }]}>
+                            <View style={[styles.miniProgressBarFill, { width: `${Math.min(100, Math.max(0, item.pct))}%`, backgroundColor: item.color }]} />
+                          </View>
+                          <Text style={[styles.miniStatValue, { color: item.color }]}>{item.pct.toFixed(0)}%</Text>
+                        </View>
                       </View>
                     ))}
                   </View>
@@ -378,8 +400,8 @@ export default function AnalyticsScreen() {
               {[
                 { label: 'Total Income',           value: totalIncome,                pct: 100,         color: '#10b981', icon: ArrowDownLeft },
                 { label: 'Spent on Expenses',       value: totalExpense,               pct: expenseRate, color: '#ef4444', icon: ArrowUpRight },
-                { label: 'Invested (cash-out)',      value: totalInvestmentsFromBalance, pct: investRate,  color: '#6366f1', icon: ShieldCheck },
-                { label: 'Loans & EMIs (cash-out)', value: totalLoansFromBalance,       pct: loanRate,    color: '#f59e0b', icon: Landmark },
+                { label: 'Invested (cash-out)',      value: totalInvestmentsFromBalance, pct: investRate,  color: colors.warning[600], icon: ShieldCheck },
+                { label: 'Loans & EMIs (cash-out)', value: totalLoansFromBalance,       pct: loanRate,    color: colors.accent[600], icon: Landmark },
                 { label: 'Net Savings (retained)',   value: netSavings,                 pct: savingsRate, color: '#0ea5e9', icon: TrendingUp },
               ].map((row, idx) => {
                 const Icon = row.icon;
@@ -420,11 +442,11 @@ export default function AnalyticsScreen() {
                 },
                 {
                   label: 'Investments (cash-out)',     ideal: 20, actual: breakdown503020.invest,
-                  color: '#6366f1', tip: 'Money deployed into assets from your balance',
+                  color: colors.warning[600], tip: 'Money deployed into assets from your balance',
                 },
                 {
                   label: 'Loan Repayments',            ideal: 10, actual: breakdown503020.loans,
-                  color: '#f59e0b', tip: 'EMIs and loan payments made',
+                  color: colors.accent[600], tip: 'EMIs and loan payments made',
                 },
                 {
                   label: 'Net Savings (retained)',     ideal: 20, actual: breakdown503020.savings,
@@ -484,8 +506,8 @@ export default function AnalyticsScreen() {
                 <View style={styles.stackedBarRow}>
                   {[
                     { label: 'Expenses', value: allocExpense,  color: '#ef4444' },
-                    { label: 'Invested', value: allocInvested, color: '#6366f1' },
-                    { label: 'Loans',    value: allocLoans,    color: '#f59e0b' },
+                    { label: 'Invested', value: allocInvested, color: colors.warning[600] },
+                    { label: 'Loans',    value: allocLoans,    color: colors.accent[600] },
                     { label: 'Savings',  value: allocSavings,  color: '#10b981' },
                   ].filter((s) => s.value > 0).map((seg) => {
                     const pct = (seg.value / allocTotal) * 100;
@@ -502,8 +524,8 @@ export default function AnalyticsScreen() {
               <View style={styles.allocationGrid}>
                 {[
                   { label: 'Expenses',         value: allocExpense,  color: '#ef4444', icon: Coffee,     subLabel: 'of income' },
-                  { label: 'Invested',          value: allocInvested, color: '#6366f1', icon: TrendingUp, subLabel: 'cash-out' },
-                  { label: 'Loan Repayments',   value: allocLoans,    color: '#f59e0b', icon: Landmark,   subLabel: 'cash-out' },
+                  { label: 'Invested',          value: allocInvested, color: colors.warning[600], icon: TrendingUp, subLabel: 'cash-out' },
+                  { label: 'Loan Repayments',   value: allocLoans,    color: colors.accent[600], icon: Landmark,   subLabel: 'cash-out' },
                   { label: 'Net Savings',       value: allocSavings,  color: '#10b981', icon: ShieldCheck, subLabel: 'retained' },
                 ].map((item) => {
                   const Icon = item.icon;
@@ -628,12 +650,12 @@ export default function AnalyticsScreen() {
                   data={{
                     labels: chartMonthlyStats.map((s) => formatMonth(s.month)),
                     datasets: [
-                      { data: chartMonthlyStats.map((s) => s.investments ?? 0), color: () => '#6366f1', strokeWidth: 3 },
+                      { data: chartMonthlyStats.map((s) => s.investments ?? 0), color: () => colors.warning[600], strokeWidth: 3 },
                     ],
                   }}
                   width={screenWidth}
                   height={180}
-                  chartConfig={{ ...chartConfig, color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})` }}
+                  chartConfig={{ ...chartConfig, color: (opacity = 1) => colors.warning[600] }}
                   bezier
                   style={styles.chart}
                   yAxisLabel="₹"
@@ -741,8 +763,8 @@ export default function AnalyticsScreen() {
                   <PieChart
                     data={[
                       { name: 'Expenses',   amount: allocExpense,  color: '#ef4444', legendFontColor: colors.light.text, legendFontSize: 11 },
-                      { name: 'Invested',   amount: allocInvested, color: '#6366f1', legendFontColor: colors.light.text, legendFontSize: 11 },
-                      { name: 'Loans',      amount: allocLoans,    color: '#f59e0b', legendFontColor: colors.light.text, legendFontSize: 11 },
+                      { name: 'Invested',   amount: allocInvested, color: colors.warning[600], legendFontColor: colors.light.text, legendFontSize: 11 },
+                      { name: 'Loans',      amount: allocLoans,    color: colors.accent[600], legendFontColor: colors.light.text, legendFontSize: 11 },
                       { name: 'Savings',    amount: allocSavings,  color: '#10b981', legendFontColor: colors.light.text, legendFontSize: 11 },
                     ].filter((d) => d.amount > 0)}
                     width={screenWidth}
@@ -954,21 +976,30 @@ const styles = StyleSheet.create({
 
   // Wealth Score
   wealthScoreRow: { flexDirection: 'row', alignItems: 'center', marginBottom: Metrics.md },
-  wealthScoreCircle: { marginRight: Metrics.md },
+  wealthScoreCircleContainer: {
+    borderWidth: 4,
+    borderRadius: 48,
+    padding: 3,
+    marginRight: Metrics.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   wealthScoreGradient: {
-    width: 80, height: 80, borderRadius: 40,
+    width: 76, height: 76, borderRadius: 38,
     justifyContent: 'center', alignItems: 'center',
   },
-  wealthScoreNumber: { fontFamily: Typography.fontFamily.bold, fontSize: 26, color: '#fff' },
+  wealthScoreNumber: { fontFamily: Typography.fontFamily.bold, fontSize: 24, color: '#fff' },
   wealthScoreOutOf: { fontFamily: Typography.fontFamily.medium, fontSize: 10, color: 'rgba(255,255,255,0.7)' },
   wealthScoreDetails: { flex: 1 },
-  wealthScoreLevel: { fontFamily: Typography.fontFamily.bold, fontSize: 16, marginBottom: 4 },
+  wealthScoreLevel: { fontFamily: Typography.fontFamily.bold, fontSize: 16 },
   wealthScoreHint: { fontFamily: Typography.fontFamily.regular, fontSize: 11, lineHeight: 15, marginBottom: 8 },
-  wealthScoreBreakdown: { gap: 4 },
-  miniStatRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  miniDot: { width: 7, height: 7, borderRadius: 4 },
-  miniStatLabel: { fontFamily: Typography.fontFamily.regular, fontSize: 11, flex: 1 },
-  miniStatValue: { fontFamily: Typography.fontFamily.bold, fontSize: 11 },
+  wealthScoreBreakdown: { gap: 6 },
+  miniStatRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 2 },
+  miniStatLabel: { fontFamily: Typography.fontFamily.medium, fontSize: 12, flex: 1 },
+  miniProgressBarContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, width: 130, justifyContent: 'flex-end' },
+  miniProgressBarBg: { height: 6, borderRadius: 3, flex: 1, overflow: 'hidden' },
+  miniProgressBarFill: { height: '100%', borderRadius: 3 },
+  miniStatValue: { fontFamily: Typography.fontFamily.bold, fontSize: 12, width: 32, textAlign: 'right' },
   scoreBarBg: { height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 4 },
   scoreBarFill: { height: '100%', borderRadius: 4 },
   scoreBarLabels: { flexDirection: 'row', justifyContent: 'space-between' },

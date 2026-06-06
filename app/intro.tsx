@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChevronRight, Wallet, PiggyBank, BarChart3, ShieldCheck, ArrowRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -110,7 +111,7 @@ export default function IntroScreen() {
     };
   }, [scrollX]);
 
-  const scrollTo = () => {
+  const scrollTo = async () => {
     if (currentIndex < slides.length - 1) {
       slidesRef.current?.scrollToOffset({
         offset: (currentIndex + 1) * width,
@@ -119,6 +120,11 @@ export default function IntroScreen() {
       return;
     }
 
+    try {
+      await AsyncStorage.setItem('@onboarding_completed', 'true');
+    } catch (e) {
+      console.warn('Failed to save onboarding completion state:', e);
+    }
     router.replace('/+auth/sign-in');
   };
 

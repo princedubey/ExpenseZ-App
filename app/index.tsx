@@ -1,12 +1,14 @@
 import { useEffect } from 'react';
-import { View, StyleSheet, Animated, Image } from 'react-native';
+import { View, StyleSheet, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import Colors from '@/constants/Colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useStore } from '@/store';
 
 export default function SplashScreen() {
   const router = useRouter();
   const fadeAnim = new Animated.Value(0);
   const scaleAnim = new Animated.Value(0.8);
+  const loadStoredCredentials = useStore((state) => state.loadStoredCredentials);
 
   useEffect(() => {
     Animated.parallel([
@@ -23,11 +25,33 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      router.replace('/intro');
-    }, 2000);
+    const checkNavigation = async () => {
+      try {
+        // Load stored credentials/session if they exist
+        await loadStoredCredentials();
+        
+        const onboardingCompleted = await AsyncStorage.getItem('@onboarding_completed');
+        
+        // Wait at least 2 seconds for splash screen animation
+        setTimeout(() => {
+          const isAuthed = useStore.getState().isAuthenticated;
+          if (isAuthed) {
+            router.replace('/(tabs)');
+          } else if (onboardingCompleted === 'true') {
+            router.replace('/+auth/sign-in');
+          } else {
+            router.replace('/intro');
+          }
+        }, 2000);
+      } catch (error) {
+        console.error('Splash screen routing error:', error);
+        setTimeout(() => {
+          router.replace('/intro');
+        }, 2000);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    checkNavigation();
   }, []);
 
   return (

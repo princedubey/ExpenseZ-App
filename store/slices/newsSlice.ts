@@ -1,5 +1,4 @@
 import { NewsSlice, StoreSlice } from '../types';
-import api from '../api';
 
 export const createNewsSlice: StoreSlice<NewsSlice> = (set, get) => ({
   news: [],
@@ -23,31 +22,43 @@ export const createNewsSlice: StoreSlice<NewsSlice> = (set, get) => ({
   }) => {
     set({ loading: true, error: null });
     try {
-      const queryParams = new URLSearchParams();
+      const apikey = process.env.EXPO_PUBLIC_NEWSDATA_API_KEY || 'pub_c55a68e5732a4efcb77cd3124f78e117';
+      const response = await fetch(
+        `https://newsdata.io/api/1/market?apikey=${apikey}&country=in&language=en`
+      );
       
-      if (params?.page) queryParams.append('page', params.page.toString());
-      if (params?.limit) queryParams.append('limit', params.limit.toString());
-      if (params?.category) queryParams.append('category', params.category);
+      const rawData = await response.json();
 
-      const response = await api.get(`/api/news?${queryParams.toString()}`);
-      const { data, pagination } = response.data;
-      
+      if (rawData.status !== 'success') {
+        throw new Error(rawData.message || 'Failed to fetch news from provider');
+      }
+
+      const mappedData = (rawData.results || []).map((item: any) => ({
+        url: item.link || '',
+        image: item.image_url || null,
+        title: item.title || '',
+        description: item.description || '',
+        source: item.source_id || 'Market News',
+        published_at: item.pubDate || new Date().toISOString(),
+      }));
+
       set((state) => ({ 
-        news: params?.page && params.page > 1 ? [...state.news, ...data] : data,
+        news: params?.page && params.page > 1 ? [...state.news, ...mappedData] : mappedData,
         pagination: {
-          currentPage: pagination.page,
-          totalPages: Math.ceil(pagination.total / pagination.limit),
-          total: pagination.total,
-          limit: pagination.limit
+          currentPage: 1,
+          totalPages: 1,
+          total: mappedData.length,
+          limit: 10
         },
         loading: false 
       }));
     } catch (error: any) {
+      console.error('Failed to fetch news:', error);
       set({ 
-        error: error?.response?.data?.message || 'Failed to fetch news',
+        error: error?.message || 'Failed to fetch news',
         loading: false 
       });
       throw error;
     }
   },
-}); 
+});
