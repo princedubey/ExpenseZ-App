@@ -168,7 +168,7 @@ export default function SignInScreen() {
 
               {/* Offline Guest Login */}
               <Button
-                title="Continue as Guest (Offline)"
+                title="Continue as Guest"
                 onPress={handleGuestLogin}
                 fullWidth
                 icon={<User size={18} color={colors.light.text} />}

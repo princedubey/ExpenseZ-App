@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Modal, Pressable, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,6 +15,7 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  RefreshCw,
 } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
@@ -47,6 +48,51 @@ export default function SettingsScreen() {
   const [isEditProfileVisible, setIsEditProfileVisible] = useState(false);
   const [editName, setEditName] = useState('');
   const updateUser = useStore((state) => state.updateUser);
+
+  const [autoSync, setAutoSync] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  // Load auto-sync settings on mount
+  useEffect(() => {
+    const loadSyncSettings = async () => {
+      try {
+        const enabled = await AsyncStorage.getItem('@expensez_auto_sync_enabled');
+        const timestamp = await AsyncStorage.getItem('@expensez_last_sync_timestamp');
+        setAutoSync(enabled === 'true');
+        setLastSyncTime(timestamp);
+      } catch (e) {
+        console.error('Error loading sync settings:', e);
+      }
+    };
+    loadSyncSettings();
+  }, []);
+
+  const toggleAutoSync = async (value: boolean) => {
+    try {
+      setAutoSync(value);
+      await AsyncStorage.setItem('@expensez_auto_sync_enabled', value ? 'true' : 'false');
+      if (value) {
+        showToast('Auto-Sync enabled!', 'success');
+        // Trigger a backup immediately in background to verify credentials
+        handleBackupToGoogleDrive(true);
+      } else {
+        showToast('Auto-Sync disabled', 'info');
+      }
+    } catch (e) {
+      console.error('Error toggling auto-sync:', e);
+      showToast('Failed to save settings', 'error');
+    }
+  };
+
+  const formatLastSyncTime = (timestamp: string | null) => {
+    if (!timestamp) return '';
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    } catch (e) {
+      return '';
+    }
+  };
 
   const handleEditProfile = () => {
     setEditName(user?.name || '');
@@ -119,9 +165,9 @@ export default function SettingsScreen() {
     }
   };
   
-  const handleBackupToGoogleDrive = async () => {
+  const handleBackupToGoogleDrive = async (silent = false) => {
     const connected = await ensureGoogleConnected();
-    if (!connected) return;
+    if (!connected) return false;
 
     try {
       setSyncing(true);
@@ -132,20 +178,32 @@ export default function SettingsScreen() {
 
       const transactions = useStore.getState().transactions;
       if (!transactions || transactions.length === 0) {
-        Alert.alert('Backup Info', 'No transaction data found locally to back up.');
+        if (!silent) {
+          Alert.alert('Backup Info', 'No transaction data found locally to back up.');
+        }
         setSyncing(false);
-        return;
+        return false;
       }
 
       const csvString = transactionsToCSV(transactions);
       const existingFileId = await findBackupFile(token);
       await uploadBackupFile(token, csvString, existingFileId);
       
+      const timestamp = new Date().toISOString();
+      await AsyncStorage.setItem('@expensez_last_sync_timestamp', timestamp);
+      setLastSyncTime(timestamp);
+
       showToast('Data backed up to Google Drive successfully!', 'success');
-      Alert.alert('Backup Success', 'Your transactions have been synchronized to your Google Drive.');
+      if (!silent) {
+        Alert.alert('Backup Success', 'Your transactions have been synchronized to your Google Drive.');
+      }
+      return true;
     } catch (error: any) {
       console.error('[Settings] Backup error:', error);
-      Alert.alert('Backup Failed', error?.message || 'An error occurred during Google Drive backup.');
+      if (!silent) {
+        Alert.alert('Backup Failed', error?.message || 'An error occurred during Google Drive backup.');
+      }
+      return false;
     } finally {
       setSyncing(false);
     }
@@ -525,7 +583,7 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={handleBackupToGoogleDrive}
+              onPress={() => handleBackupToGoogleDrive(false)}
               disabled={syncing}
             >
               <View style={[styles.settingIconContainer, { backgroundColor: Colors.primary[50] }]}>
@@ -537,6 +595,25 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={Metrics.iconSize.md} color={Colors.gray[400]} />
             </TouchableOpacity>
+
+            <View style={styles.settingItem}>
+              <View style={[styles.settingIconContainer, { backgroundColor: '#f0f9ff' }]}>
+                <RefreshCw size={Metrics.iconSize.md} color="#0284c7" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Auto-Sync Daily</Text>
+                <Text style={styles.settingValue}>
+                  {lastSyncTime ? `Last synced: ${formatLastSyncTime(lastSyncTime)}` : 'Automatically sync to Drive once a day'}
+                </Text>
+              </View>
+              <Switch
+                value={autoSync}
+                onValueChange={toggleAutoSync}
+                trackColor={{ false: Colors.gray[300], true: Colors.primary[300] }}
+                thumbColor={autoSync ? Colors.primary[600] : Colors.gray[400]}
+                disabled={syncing}
+              />
+            </View>
 
             <TouchableOpacity
               style={styles.settingItem}

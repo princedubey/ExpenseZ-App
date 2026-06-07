@@ -440,7 +440,6 @@ export default function AddTransactionScreen() {
             mode="date"
             display="default"
             onChange={handleDateChange}
-            maximumDate={new Date()}
           />
         )}
       </KeyboardAvoidingView>

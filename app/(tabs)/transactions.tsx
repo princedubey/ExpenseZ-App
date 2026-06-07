@@ -1286,7 +1286,6 @@ export default function TransactionsScreen() {
           mode="date"
           display="default"
           onChange={handleCustomDateChange}
-          maximumDate={new Date()}
         />
       )}
 

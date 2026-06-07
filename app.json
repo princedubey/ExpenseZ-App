@@ -25,7 +25,7 @@
       },
       "googleServicesFile": "./google-services.json",
       "package": "com.expensez.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": []
     },
     "web": {
