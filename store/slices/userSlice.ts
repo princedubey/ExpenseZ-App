@@ -34,10 +34,19 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
     set({ user });
   },
 
-  getUserAnalytics: async (): Promise<AnalyticsData> => {
-    set({ loading: true, error: null });
+  getUserAnalytics: async (forceRefresh = false): Promise<AnalyticsData> => {
+    const hasCache = get().analytics !== null;
+    if (!hasCache || forceRefresh) {
+      set({ loading: true, error: null });
+    }
     try {
-      const transactions = (get() as any).transactions || [];
+      let transactions = (get() as any).transactions || [];
+      if (transactions.length === 0) {
+        if ((get() as any).fetchTransactions) {
+          await (get() as any).fetchTransactions();
+          transactions = (get() as any).transactions || [];
+        }
+      }
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
@@ -100,11 +109,11 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
             if (t.type === 'cash_in') m.income += amt;
             else if (t.type === 'cash_out') m.expense += amt;
             else if (t.type === 'investment') {
-              m.investments += amt;
-              if (t.source === 'balance') m.investmentsFromBalance += amt;
+              if (!t.isBroken) m.investments += amt;
+              if (t.source !== 'existing') m.investmentsFromBalance += amt;
             } else if (t.type === 'loan') {
               m.loans += amt;
-              if (t.source === 'balance') m.loansFromBalance += amt;
+              if (t.source !== 'existing') m.loansFromBalance += amt;
             }
           }
         });
@@ -116,11 +125,15 @@ export const createUserSlice: StoreSlice<UserSlice> = (set, get) => ({
           totalExpense += amt;
           categoryMapOverall[t.category] = (categoryMapOverall[t.category] || 0) + amt;
         } else if (t.type === 'investment') {
-          totalInvestments += amt;
-          if (t.source === 'balance') totalInvestmentsFromBalance += amt;
+          if (!t.isBroken) {
+            totalInvestments += amt;
+          }
+          if (t.source !== 'existing') {
+            totalInvestmentsFromBalance += amt;
+          }
         } else if (t.type === 'loan') {
           totalLoans += amt;
-          if (t.source === 'balance') totalLoansFromBalance += amt;
+          if (t.source !== 'existing') totalLoansFromBalance += amt;
         }
 
         // Process current month stats specifically

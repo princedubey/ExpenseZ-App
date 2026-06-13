@@ -23,6 +23,7 @@ export const INCOME_CATEGORIES = {
   INVESTMENT: 'Investment',
   RENTAL: 'Rental Income',
   FREELANCE: 'Freelance',
+  FD_BREAK: 'FD Break',
   OTHERS: 'Others'
 } as const;
 
@@ -89,6 +90,8 @@ export const getCategoryColor = (category: string) => {
       return '#1ABC9C';
     case INCOME_CATEGORIES.FREELANCE:
       return '#F1C40F';
+    case INCOME_CATEGORIES.FD_BREAK:
+      return '#10B981';
     case INCOME_CATEGORIES.OTHERS:
       return '#95A5A6';
     case INVESTMENT_CATEGORIES.FD:

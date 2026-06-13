@@ -45,6 +45,7 @@ function RootLayoutContent() {
         <Stack.Screen name="+not-found" />
         <Stack.Screen name="(modals)" options={{ headerShown: false }} />
         <Stack.Screen name="news-detail" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="active-tracker" options={{ animation: 'slide_from_right' }} />
       </Stack>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </>

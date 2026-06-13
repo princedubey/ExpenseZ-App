@@ -44,9 +44,9 @@ export default function HomeScreen() {
   const { showToast } = useToast();
 
   // Load dashboard stats
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async (force = false) => {
     try {
-      await getUserStats();
+      await getUserStats(force);
     } catch (error: any) {
       showToast(error?.message || 'Failed to load stats', 'error');
     }
@@ -55,7 +55,7 @@ export default function HomeScreen() {
   // Refresh when focusing screen
   useFocusEffect(
     useCallback(() => {
-      loadStats();
+      loadStats(false);
     }, [loadStats])
   );
 
@@ -95,7 +95,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={loadStats} colors={[colors.primary[600]]} />
+          <RefreshControl refreshing={loading} onRefresh={() => loadStats(true)} colors={[colors.primary[600]]} />
         }
       >
         {/* Header */}
@@ -216,6 +216,22 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* Commitment Tracker Banner */}
+        <TouchableOpacity
+          style={[styles.trackerBanner, { backgroundColor: colors.primary[50] + '12', borderColor: colors.primary[600] + '20' }]}
+          onPress={() => router.push('/active-tracker' as any)}
+          activeOpacity={0.85}
+        >
+          <View style={styles.trackerBannerIcon}>
+            <TrendingUp size={20} color={colors.primary[600]} />
+          </View>
+          <View style={styles.trackerBannerContent}>
+            <Text style={[styles.trackerBannerTitle, { color: colors.light.text }]}>FD, EMI & SIP Tracker</Text>
+            <Text style={[styles.trackerBannerSubtitle, { color: colors.gray[500] }]}>Manage active deposits, monthly EMIs and SIP commitments</Text>
+          </View>
+          <ChevronRight size={16} color={colors.primary[600]} />
+        </TouchableOpacity>
         
         {/* Recent Transactions */}
         <View style={styles.section}>
@@ -653,5 +669,40 @@ const styles = StyleSheet.create({
     fontSize: Metrics.fontSizes.sm,
     textAlign: 'center',
     lineHeight: 18,
+  },
+  trackerBanner: {
+    marginHorizontal: Metrics.lg,
+    marginVertical: Metrics.sm,
+    padding: Metrics.md,
+    borderRadius: Metrics.borderRadius.xl,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Metrics.md,
+    shadowColor: '#000',
+    shadowOpacity: 0.01,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 3 },
+  },
+  trackerBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  trackerBannerContent: {
+    flex: 1,
+  },
+  trackerBannerTitle: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.md - 1,
+  },
+  trackerBannerSubtitle: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: 10,
+    marginTop: 2,
+    lineHeight: 14,
   },
 });

@@ -27,6 +27,8 @@ export interface TransactionType {
   transactionDate: string;
   date?: string;
   note: string;
+  isBroken?: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }

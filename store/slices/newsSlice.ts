@@ -42,16 +42,16 @@ export const createNewsSlice: StoreSlice<NewsSlice> = (set, get) => ({
         published_at: item.pubDate || new Date().toISOString(),
       }));
 
-      set((state) => ({ 
-        news: params?.page && params.page > 1 ? [...state.news, ...mappedData] : mappedData,
+      set({ 
+        news: mappedData,
         pagination: {
           currentPage: 1,
           totalPages: 1,
           total: mappedData.length,
-          limit: 10
+          limit: mappedData.length
         },
         loading: false 
-      }));
+      });
     } catch (error: any) {
       console.error('Failed to fetch news:', error);
       set({ 

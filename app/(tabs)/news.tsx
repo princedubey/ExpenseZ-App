@@ -23,17 +23,10 @@ export default function NewsScreen() {
   const setNews = useStore((state) => state.setNews);
 
   // Load news
-  const loadNews = useCallback(async (page = 1) => {
+  const loadNews = useCallback(async () => {
     try {
-      // Reset news when refreshing
-      if (page === 1) {
-        setNews([]);
-      }
-
-      await fetchNews({
-        page,
-        limit: 10
-      });
+      setNews([]);
+      await fetchNews();
     } catch (error: any) {
       showToast(error?.message || 'Failed to load news', 'error');
     }
@@ -47,20 +40,13 @@ export default function NewsScreen() {
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadNews(1);
+      loadNews();
     }, [loadNews])
   );
 
   // Handle refresh
   const handleRefresh = () => {
-    loadNews(1);
-  };
-
-  // Handle load more
-  const handleLoadMore = () => {
-    if (pagination.currentPage < pagination.totalPages) {
-      loadNews(pagination.currentPage + 1);
-    }
+    loadNews();
   };
 
   // Format date
@@ -126,8 +112,6 @@ export default function NewsScreen() {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} colors={[colors.primary[600]]} />
         }
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.1}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: colors.gray[500] }]}>

@@ -15,6 +15,8 @@ interface TransactionItemProps {
 export function TransactionItem({ transaction, onPress }: TransactionItemProps) {
   const colors = useColors();
   const { amount, type, category, transactionDate, note, source } = transaction;
+  const isBroken = (transaction as any).isBroken;
+  const isInactive = (transaction as any).isActive === false;
   
   // Format date to readable string
   const formattedDate = new Date(transactionDate).toLocaleDateString('en-US', {
@@ -49,13 +51,39 @@ export function TransactionItem({ transaction, onPress }: TransactionItemProps) 
       
       <View style={styles.detailsContainer}>
         <View style={styles.mainDetails}>
-          <Text style={[styles.category, { color: colors.light.text }]} numberOfLines={2}>
-            {note || (transaction as any).title || category}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, flexWrap: 'wrap' }}>
+            <Text
+              style={[
+                styles.category,
+                { color: (isBroken || isInactive) ? colors.gray[400] : colors.light.text },
+                (isBroken || isInactive) && { textDecorationLine: 'line-through' }
+              ]}
+              numberOfLines={2}
+            >
+              {note || (transaction as any).title || category}
+            </Text>
+            {isBroken && (
+              <View style={[styles.badge, { backgroundColor: '#fee2e2' }]}>
+                <Text style={[styles.badgeText, { color: '#ef4444' }]}>FD Breaked</Text>
+              </View>
+            )}
+            {isInactive && category === 'SIP' && (
+              <View style={[styles.badge, { backgroundColor: '#fef3c7' }]}>
+                <Text style={[styles.badgeText, { color: '#d97706' }]}>SIP Stopped</Text>
+              </View>
+            )}
+            {isInactive && category === 'EMI' && (
+              <View style={[styles.badge, { backgroundColor: '#dcfce7' }]}>
+                <Text style={[styles.badgeText, { color: '#16a34a' }]}>EMI Completed</Text>
+              </View>
+            )}
+          </View>
           <Text
             style={[
               styles.amount,
-              type === 'investment'
+              (isBroken || isInactive)
+                ? { color: colors.gray[400], textDecorationLine: 'line-through' }
+                : type === 'investment'
                 ? { color: colors.warning[600] }
                 : type === 'loan'
                 ? { color: colors.accent[600] }
@@ -130,6 +158,17 @@ const styles = StyleSheet.create({
   date: {
     fontFamily: Typography.fontFamily.regular,
     fontSize: Metrics.fontSizes.xs,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: Metrics.sm,
+    alignSelf: 'center',
+  },
+  badgeText: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: 9,
   },
 });
 

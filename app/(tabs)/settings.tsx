@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Modal, Pressable, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, ActivityIndicator, Modal, Pressable, TextInput, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
@@ -15,10 +15,13 @@ import {
   Upload,
   Download,
   FileSpreadsheet,
+  FileText,
   RefreshCw,
+  Database,
 } from 'lucide-react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useColors } from '@/constants/Colors';
@@ -272,6 +275,22 @@ export default function SettingsScreen() {
       }
 
       const csvString = transactionsToCSV(transactions);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = globalThis.document?.createElement('a');
+        if (!link) return;
+        link.href = url;
+        link.download = 'ExpenseZ_Export.csv';
+        globalThis.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast('CSV Export downloaded successfully!', 'success');
+        return;
+      }
+
       const fileUri = FileSystem.cacheDirectory + 'ExpenseZ_Export.csv';
       
       await FileSystem.writeAsStringAsync(fileUri, csvString, {
@@ -289,6 +308,143 @@ export default function SettingsScreen() {
     } catch (error: any) {
       console.error('[Settings] Export error:', error);
       Alert.alert('Export Failed', error?.message || 'Could not export local CSV.');
+    }
+  };
+
+  const handleExportLocalJSON = async () => {
+    try {
+      const transactions = useStore.getState().transactions;
+      if (!transactions || transactions.length === 0) {
+        Alert.alert('Export Backup', 'No transaction data available to export.');
+        return;
+      }
+
+      const jsonString = JSON.stringify(transactions, null, 2);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = globalThis.document?.createElement('a');
+        if (!link) return;
+        link.href = url;
+        link.download = 'ExpenseZ_Backup.json';
+        globalThis.document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast('Local Backup downloaded successfully!', 'success');
+        return;
+      }
+
+      const fileUri = FileSystem.cacheDirectory + 'ExpenseZ_Backup.json';
+      
+      await FileSystem.writeAsStringAsync(fileUri, jsonString, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: 'Export ExpenseZ Local Backup',
+        });
+      } else {
+        Alert.alert('Sharing Unavailable', 'Backup sharing is not supported on this platform.');
+      }
+    } catch (error: any) {
+      console.error('[Settings] Export backup error:', error);
+      Alert.alert('Export Failed', error?.message || 'Could not export local backup.');
+    }
+  };
+
+  const handleRestoreLocalBackup = async () => {
+    try {
+      let fileContent = '';
+
+      if (Platform.OS === 'web') {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+
+        const filePromise = new Promise<string>((resolve, reject) => {
+          input.onchange = (e: any) => {
+            const file = e.target.files?.[0];
+            if (!file) {
+              reject(new Error('No file selected'));
+              return;
+            }
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              resolve(event.target?.result as string);
+            };
+            reader.onerror = () => reject(new Error('Error reading file'));
+            reader.readAsText(file);
+          };
+          input.onerror = () => reject(new Error('File chooser error'));
+        });
+
+        input.click();
+        fileContent = await filePromise;
+      } else {
+        const result = await DocumentPicker.getDocumentAsync({
+          type: 'application/json',
+          copyToCacheDirectory: true,
+        });
+
+        if (result.canceled) {
+          showToast('Restore cancelled', 'info');
+          return;
+        }
+
+        const asset = result.assets[0];
+        fileContent = await FileSystem.readAsStringAsync(asset.uri, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+      }
+
+      if (!fileContent) {
+        Alert.alert('Restore Failed', 'Selected file is empty.');
+        return;
+      }
+
+      const restoredTransactions = JSON.parse(fileContent);
+      if (!Array.isArray(restoredTransactions)) {
+        throw new Error('Invalid backup format: Must be a list of transactions.');
+      }
+
+      if (restoredTransactions.length > 0) {
+        const first = restoredTransactions[0];
+        if (first.amount === undefined || !first.type || !first.category) {
+          throw new Error('Invalid backup file: Missing transaction fields.');
+        }
+      }
+
+      Alert.alert(
+        'Restore Backup',
+        `Are you sure you want to overwrite all local transaction data with the selected backup file containing ${restoredTransactions.length} transactions?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Restore',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                setSyncing(true);
+                await AsyncStorage.setItem('@expensez_transactions', JSON.stringify(restoredTransactions));
+                useStore.getState().setTransactions(restoredTransactions);
+                await useStore.getState().getUserStats();
+                showToast('Local backup restored successfully!', 'success');
+              } catch (error: any) {
+                Alert.alert('Restore Failed', error?.message || 'Could not save restored data.');
+              } finally {
+                setSyncing(false);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.error('[Settings] Restore local backup error:', error);
+      Alert.alert('Restore Failed', error?.message || 'Could not parse or load local backup file.');
     }
   };
 
@@ -632,15 +788,30 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={handleExportLocalCSV}
+              onPress={handleExportLocalJSON}
               disabled={syncing}
             >
-              <View style={[styles.settingIconContainer, { backgroundColor: '#f0fdf4' }]}>
-                <FileSpreadsheet size={Metrics.iconSize.md} color="#16a34a" />
+              <View style={[styles.settingIconContainer, { backgroundColor: '#eff6ff' }]}>
+                <FileText size={Metrics.iconSize.md} color="#2563eb" />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingLabel}>Export Local CSV</Text>
-                <Text style={styles.settingValue}>Save/Share transactions using native share sheet</Text>
+                <Text style={styles.settingLabel}>Export Local Backup</Text>
+                <Text style={styles.settingValue}>Save/Share transactions as a backup file</Text>
+              </View>
+              <ChevronRight size={Metrics.iconSize.md} color={Colors.gray[400]} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleRestoreLocalBackup}
+              disabled={syncing}
+            >
+              <View style={[styles.settingIconContainer, { backgroundColor: '#f5f3ff' }]}>
+                <Database size={Metrics.iconSize.md} color="#7c3aed" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Restore from Local Backup</Text>
+                <Text style={styles.settingValue}>Select a backup file on your device to restore transactions</Text>
               </View>
               <ChevronRight size={Metrics.iconSize.md} color={Colors.gray[400]} />
             </TouchableOpacity>
@@ -696,6 +867,21 @@ export default function SettingsScreen() {
               thumbColor={notifications ? Colors.primary[600] : Colors.gray[400]}
             />
           </View>
+
+          {/* FD, EMI & SIP Tracker */}
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => router.push('/active-tracker' as any)}
+          >
+            <View style={[styles.settingIconContainer, { backgroundColor: '#f5f3ff' }]}>
+              <RefreshCw size={Metrics.iconSize.md} color="#7c3aed" />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>FD, EMI & SIP Tracker</Text>
+              <Text style={styles.settingValue}>Track active fixed deposits and recurring commitments</Text>
+            </View>
+            <ChevronRight size={Metrics.iconSize.md} color={Colors.gray[400]} />
+          </TouchableOpacity>
         </View>
         
         {/* Help & Support Section */}

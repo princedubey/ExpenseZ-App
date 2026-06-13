@@ -48,7 +48,7 @@ export interface UserSlice {
   error: string | null;
   analytics: AnalyticsData | null;
   setUser: (user: User | null) => void;
-  getUserAnalytics: () => Promise<AnalyticsData>;
+  getUserAnalytics: (forceRefresh?: boolean) => Promise<AnalyticsData>;
   updateUser: (data: Partial<User>) => Promise<User>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -71,6 +71,9 @@ export interface Transaction {
   transactionDate: string;
   date?: string;
   note: string;
+  isBroken?: boolean;
+  isActive?: boolean;
+  breakFdId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,13 +123,14 @@ export interface TransactionSlice {
     category?: string;
     month?: number;
     year?: number;
-  }) => Promise<void>;
+  }, forceRefresh?: boolean) => Promise<void>;
   fetchTransactionById: (id: string) => Promise<Transaction>;
   addTransaction: (transaction: Omit<Transaction, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => Promise<Transaction>;
   updateTransaction: (id: string, transaction: Omit<Transaction, '_id' | 'user' | 'createdAt' | 'updatedAt'>) => Promise<Transaction>;
   deleteTransaction: (id: string) => Promise<void>;
-  fetchTransactionSummary: () => Promise<void>;
-  getUserStats: () => Promise<UserStats>;
+  fetchTransactionSummary: (forceRefresh?: boolean) => Promise<void>;
+  getUserStats: (forceRefresh?: boolean) => Promise<UserStats>;
+  syncBackupData: () => Promise<void>;
 }
 
 export interface AnalyticsData {

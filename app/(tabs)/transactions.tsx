@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, RefreshControl, ActivityIndicator, Platform, Modal, Pressable, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -622,6 +622,8 @@ const getCategoryIcon = (category: string): string => {
       return 'home-outline';
     case 'Salary':
       return 'cash-outline';
+    case 'FD Break':
+      return 'cash-outline';
     case 'Business':
       return 'briefcase-outline';
     case 'Investment':
@@ -692,11 +694,8 @@ export default function TransactionsScreen() {
     
     allTx = allTx.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
 
-    if (activeFilter !== 'all') {
-      allTx = allTx.filter((t) => t.type === activeFilter);
-    }
     return allTx;
-  }, [activeFilter]);
+  }, []);
 
   const handleExport = useCallback(async (format: ExportFormat) => {
     try {
@@ -705,9 +704,9 @@ export default function TransactionsScreen() {
       const items = await fetchAllTransactionsForExport();
 
       if (format === 'csv') {
-        await shareCsv(buildCsv(items), activeFilterLabel);
+        await shareCsv(buildCsv(items), 'All');
       } else {
-        await sharePdf(items, buildPdfHtml(items, activeFilterLabel), activeFilterLabel);
+        await sharePdf(items, buildPdfHtml(items, 'All'), 'All');
       }
 
       showToast(`${format.toUpperCase()} export ready`, 'success');
@@ -716,27 +715,24 @@ export default function TransactionsScreen() {
     } finally {
       setExportingFormat(null);
     }
-  }, [fetchAllTransactionsForExport, activeFilterLabel, showToast]);
+  }, [fetchAllTransactionsForExport, showToast]);
 
   const openExportMenu = () => setIsExportMenuVisible(true);
   const closeExportMenu = () => setIsExportMenuVisible(false);
 
   // Load transactions with current filter
-  const loadTransactions = useCallback(async (page = 1) => {
+  const loadTransactions = useCallback(async (force = false) => {
     try {
-      // Reset transactions when changing filters or refreshing
-      if (page === 1) {
+      if (force) {
         setTransactions([]);
       }
 
       const filterQuery = getFilterQuery(activeFilter, customDateRange);
       const params = {
-        page,
-        limit: 10,
         ...filterQuery,
       };
 
-      await fetchTransactions(params);
+      await fetchTransactions(params, force);
     } catch (error: any) {
       showToast(error?.message || 'Failed to load transactions', 'error');
     }
@@ -761,19 +757,15 @@ export default function TransactionsScreen() {
 
   // Refresh transactions when filter changes
   useEffect(() => {
-    loadTransactions(1);
+    loadTransactions();
   }, [activeFilter, loadTransactions]);
 
   // Handle refresh
   const handleRefresh = () => {
-    loadTransactions(1);
-  };
-
-  // Handle load more
-  const handleLoadMore = () => {
-    if (pagination.currentPage < pagination.totalPages) {
-      loadTransactions(pagination.currentPage + 1);
-    }
+    loadTransactions(true);
+    getUserStats(true).catch((error) => {
+      showToast(error?.message || 'Failed to load stats', 'error');
+    });
   };
 
   // Handle transaction selection
@@ -786,7 +778,7 @@ export default function TransactionsScreen() {
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      loadTransactions(1);
+      loadTransactions();
       getUserStats().catch((error) => {
         showToast(error?.message || 'Failed to load stats', 'error');
       });
@@ -801,6 +793,24 @@ export default function TransactionsScreen() {
     const categoryMatch = (item.category || '').toLowerCase().includes(searchQuery.toLowerCase());
     return titleMatch || noteMatch || categoryMatch;
   });
+
+  const { totalIn, totalOut, netFlow } = useMemo(() => {
+    let inflow = 0;
+    let outflow = 0;
+    displayedTransactions.forEach((item) => {
+      const isNegative = item.type === 'cash_out' || item.type === 'loan' || (item.type === 'investment' && item.source !== 'existing');
+      if (isNegative) {
+        outflow += item.amount;
+      } else {
+        inflow += item.amount;
+      }
+    });
+    return {
+      totalIn: inflow,
+      totalOut: outflow,
+      netFlow: inflow - outflow,
+    };
+  }, [displayedTransactions]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]} edges={['top']}>
@@ -1293,10 +1303,55 @@ export default function TransactionsScreen() {
       <FlatList
         data={displayedTransactions}
         keyExtractor={(item) => item.id || item._id}
+        ListHeaderComponent={
+          displayedTransactions.length > 0 ? (
+            <View style={[styles.resultsSummaryCard, { backgroundColor: colors.light.card, borderColor: colors.light.border }]}>
+              <View style={styles.resultsSummaryHeader}>
+                <Ionicons name="analytics-outline" size={15} color={colors.primary[600]} />
+                <Text style={[styles.resultsSummaryTitle, { color: colors.light.text }]}>
+                  Results Summary ({displayedTransactions.length})
+                </Text>
+              </View>
+              <View style={styles.resultsSummaryGrid}>
+                {totalIn > 0 && (
+                  <View style={styles.resultsSummaryItem}>
+                    <Text style={[styles.resultsSummaryLabel, { color: colors.gray[500] }]}>TOTAL IN</Text>
+                    <Text style={[styles.resultsSummaryAmount, { color: colors.success[600] }]}>
+                      +{formatCurrency(totalIn)}
+                    </Text>
+                  </View>
+                )}
+                {totalOut > 0 && (
+                  <View style={styles.resultsSummaryItem}>
+                    <Text style={[styles.resultsSummaryLabel, { color: colors.gray[500] }]}>TOTAL OUT</Text>
+                    <Text style={[styles.resultsSummaryAmount, { color: colors.error[600] }]}>
+                      -{formatCurrency(totalOut)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.resultsSummaryItem}>
+                  <Text style={[styles.resultsSummaryLabel, { color: colors.gray[500] }]}>NET FLOW</Text>
+                  <Text
+                    style={[
+                      styles.resultsSummaryAmount,
+                      { color: netFlow >= 0 ? colors.success[600] : colors.error[600] },
+                    ]}
+                  >
+                    {netFlow >= 0 ? '+' : '-'}
+                    {formatCurrency(Math.abs(netFlow))}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => {
           const catColor = getCategoryColor(item.category);
           const itemId = item.id || item._id;
           const isNegative = item.type === 'cash_out' || item.type === 'loan' || (item.type === 'investment' && item.source !== 'existing');
+          const isBroken = item.isBroken;
+          const isInactive = item.isActive === false;
+
           return (
             <TouchableOpacity
               key={itemId}
@@ -1312,9 +1367,33 @@ export default function TransactionsScreen() {
 
                 {/* Mid Section */}
                 <View style={styles.midBlock}>
-                  <Text style={[styles.transactionTitle, { color: colors.light.text, marginRight: Metrics.sm }]} numberOfLines={2}>
-                    {item.title || item.note || item.category || 'No description'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Text
+                      style={[
+                        styles.transactionTitle,
+                        { color: (isBroken || isInactive) ? colors.gray[400] : colors.light.text, marginRight: Metrics.sm },
+                        (isBroken || isInactive) && { textDecorationLine: 'line-through' }
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {item.title || item.note || item.category || 'No description'}
+                    </Text>
+                    {isBroken && (
+                      <View style={[styles.badge, { backgroundColor: '#fee2e2' }]}>
+                        <Text style={[styles.badgeText, { color: '#ef4444' }]}>FD Breaked</Text>
+                      </View>
+                    )}
+                    {isInactive && item.category === 'SIP' && (
+                      <View style={[styles.badge, { backgroundColor: '#fef3c7' }]}>
+                        <Text style={[styles.badgeText, { color: '#d97706' }]}>SIP Stopped</Text>
+                      </View>
+                    )}
+                    {isInactive && item.category === 'EMI' && (
+                      <View style={[styles.badge, { backgroundColor: '#dcfce7' }]}>
+                        <Text style={[styles.badgeText, { color: '#16a34a' }]}>EMI Completed</Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.metaRow}>
                     <Text style={[styles.transactionDate, { color: colors.gray[400] }]}>
                       {new Date(item.transactionDate || item.date || item.createdAt).toLocaleDateString('en-US', {
@@ -1339,13 +1418,16 @@ export default function TransactionsScreen() {
                     style={[
                       styles.transactionAmount,
                       {
-                        color: item.type === 'investment'
+                        color: (isBroken || isInactive)
+                          ? colors.gray[400]
+                          : item.type === 'investment'
                           ? colors.warning[600]
                           : item.type === 'loan'
                           ? colors.accent[600]
                           : item.type === 'cash_out'
                           ? colors.error[600]
                           : colors.success[600],
+                        textDecorationLine: (isBroken || isInactive) ? 'line-through' : 'none',
                       },
                     ]}
                   >
@@ -1360,8 +1442,6 @@ export default function TransactionsScreen() {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={handleRefresh} colors={[colors.primary[600]]} />
         }
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.1}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Image
@@ -1805,5 +1885,54 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 6,
+  },
+  badge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: Metrics.sm,
+    alignSelf: 'center',
+  },
+  badgeText: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: 9,
+  },
+  resultsSummaryCard: {
+    borderRadius: Metrics.borderRadius.xl,
+    borderWidth: 1,
+    padding: Metrics.md,
+    marginBottom: Metrics.md,
+    marginTop: Metrics.xs,
+  },
+  resultsSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Metrics.xs,
+    marginBottom: Metrics.sm,
+  },
+  resultsSummaryTitle: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.xs,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  resultsSummaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Metrics.md,
+  },
+  resultsSummaryItem: {
+    flex: 1,
+  },
+  resultsSummaryLabel: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: 8,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  resultsSummaryAmount: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.sm + 1,
   },
 });

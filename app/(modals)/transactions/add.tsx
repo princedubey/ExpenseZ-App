@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -16,6 +16,51 @@ import { Ionicons } from '@expo/vector-icons';
 
 type DateRange = { startDate: Date | null; endDate: Date | null };
 
+const CATEGORY_KEYWORDS: { [key: string]: { keywords: string[]; category: string }[] } = {
+  cash_out: [
+    { category: 'Food & Dining', keywords: ['food', 'dining', 'restaurant', 'cafe', 'lunch', 'dinner', 'swiggy', 'zomato', 'mcdonald', 'burger', 'pizza', 'starbucks', 'eat', 'grocery', 'bakery', 'sweet'] },
+    { category: 'Transport', keywords: ['uber', 'ola', 'cab', 'taxi', 'auto', 'metro', 'train', 'bus', 'fuel', 'petrol', 'diesel', 'cng', 'parking', 'toll', 'car wash'] },
+    { category: 'Shopping', keywords: ['shopping', 'amazon', 'flipkart', 'myntra', 'clothes', 'shoes', 'dress', 'mall', 'purchase', 'gadget', 'phone', 'laptop', 'device'] },
+    { category: 'Entertainment', keywords: ['movie', 'cinema', 'theatre', 'show', 'netflix', 'spotify', 'prime', 'hotstar', 'youtube', 'concert', 'game', 'gaming', 'pub', 'club', 'party', 'bar'] },
+    { category: 'Bills & Utilities', keywords: ['bill', 'electricity', 'water', 'gas', 'wifi', 'internet', 'recharge', 'broadband', 'phone bill', 'postpaid', 'tv', 'dth'] },
+    { category: 'EMI', keywords: ['emi', 'housing emi', 'car emi', 'loan emi', 'installment'] },
+    { category: 'Loan Repayment', keywords: ['loan repayment', 'repay', 'debt', 'borrowed'] },
+    { category: 'Health & Medical', keywords: ['doctor', 'hospital', 'medicine', 'clinic', 'pharmacy', 'medical', 'dental', 'health checkup', 'dentist', 'lab'] },
+    { category: 'Education', keywords: ['school', 'college', 'tuition', 'fees', 'books', 'course', 'class', 'stationery', 'udemy', 'coursera'] },
+    { category: 'Travel', keywords: ['flight', 'hotel', 'trip', 'travel', 'vacation', 'holiday', 'booking', 'train ticket', 'air ticket', 'irctc'] },
+    { category: 'Groceries', keywords: ['grocery', 'groceries', 'milk', 'vegetable', 'fruit', 'blinkit', 'zepto', 'instamart', 'supermarket', 'bigbasket', 'ration'] },
+    { category: 'Rent', keywords: ['rent', 'house rent', 'flat rent', 'room rent', 'landlord'] },
+    { category: 'Subscriptions', keywords: ['subscription', 'netflix sub', 'spotify sub', 'youtube premium', 'gym membership', 'adobe', 'icloud', 'gdrive'] },
+    { category: 'Insurance', keywords: ['insurance', 'lic', 'premium', 'policy', 'term insurance', 'health insurance', 'car insurance'] },
+    { category: 'Personal Care', keywords: ['salon', 'parlor', 'spa', 'barber', 'haircut', 'shaving', 'makeup', 'cosmetics', 'grooming', 'gym', 'workout'] },
+  ],
+  cash_in: [
+    { category: 'Salary', keywords: ['salary', 'paycheck', 'wages', 'bonus', 'stipend', 'pension', 'company pay'] },
+    { category: 'Business', keywords: ['business', 'client', 'sales', 'revenue', 'invoice', 'customer', 'vendor', 'partnership'] },
+    { category: 'Investment', keywords: ['dividend', 'interest', 'fd interest', 'stock returns', 'capital gain', 'mutual fund returns'] },
+    { category: 'Rental Income', keywords: ['rental', 'rent received', 'tenant', 'lease', 'sublet'] },
+    { category: 'Freelance', keywords: ['freelance', 'upwork', 'fiverr', 'project', 'contract', 'gigs', 'consulting'] },
+    { category: 'FD Break', keywords: ['fd break', 'broken fd', 'fixed deposit broken', 'break fd'] },
+  ],
+  investment: [
+    { category: 'FD', keywords: ['fd', 'fixed deposit', 'term deposit', 'suryoday', 'hdfc fd', 'sbi fd', 'axis fd', 'icici fd'] },
+    { category: 'RD', keywords: ['rd', 'recurring deposit'] },
+    { category: 'SIP', keywords: ['sip', 'monthly sip', 'mutual fund sip', 'sip payment'] },
+    { category: 'PPF', keywords: ['ppf', 'public provident fund'] },
+    { category: 'EPF', keywords: ['epf', 'provident fund', 'pf'] },
+    { category: 'Stock', keywords: ['stock', 'stocks', 'share', 'shares', 'zerodha', 'groww', 'angelone', 'equity', 'demat'] },
+    { category: 'Mutual Fund', keywords: ['mutual fund', 'mf', 'lumpsum', 'fund', 'uti', 'parag parikh', 'quant', 'sbi mutual'] },
+    { category: 'ETF', keywords: ['etf', 'nifty50 etf', 'gold etf'] },
+    { category: 'Crypto', keywords: ['crypto', 'bitcoin', 'ethereum', 'btc', 'eth', 'wazirx', 'coinswitch', 'usdt'] },
+    { category: 'Gold', keywords: ['gold', 'sovereign gold', 'sgb', 'silver', 'jewelry'] },
+    { category: 'Real Estate', keywords: ['real estate', 'property', 'land', 'plot', 'flat purchase', 'house purchase'] },
+  ],
+  loan: [
+    { category: 'Loan Repayment', keywords: ['repayment', 'pay back', 'settle loan', 'repay loan'] },
+    { category: 'EMI', keywords: ['emi', 'installment', 'monthly installment'] },
+  ],
+};
+
 export default function AddTransactionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -30,6 +75,38 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState(params.note?.toString() || '');
   const [date, setDate] = useState(params.date ? new Date(params.date as string) : new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isBroken, setIsBroken] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+  const [breakFdId, setBreakFdId] = useState(params.breakFdId?.toString() || '');
+
+  const transactions = useStore((state) => state.transactions);
+
+  const activeFds = useMemo(() => {
+    return transactions.filter(
+      (t) => 
+        t.type === 'investment' && 
+        t.category === 'FD' && 
+        (!t.isBroken || t._id === breakFdId || t.id === breakFdId)
+    );
+  }, [transactions, breakFdId]);
+
+  const suggestedCategory = useMemo(() => {
+    const trimmedNote = note.trim().toLowerCase();
+    if (!trimmedNote) return null;
+
+    const listKey = type === 'loan' ? 'loan' : type === 'cash_in' ? 'cash_in' : type === 'investment' ? 'investment' : 'cash_out';
+    const mappings = CATEGORY_KEYWORDS[listKey] || [];
+
+    for (const item of mappings) {
+      for (const keyword of item.keywords) {
+        if (trimmedNote.includes(keyword)) {
+          return item.category;
+        }
+      }
+    }
+    return null;
+  }, [note, type]);
+
   const [errors, setErrors] = useState<{
     amount?: string;
     category?: string;
@@ -87,6 +164,9 @@ export default function AddTransactionScreen() {
             setCategory(t.category === 'Uncategorized' ? '' : t.category);
             setNote(t.note || '');
             setDate(new Date(t.transactionDate || t.date || t.createdAt));
+            setIsBroken(!!t.isBroken);
+            setIsActive(t.isActive !== false);
+            setBreakFdId(t.breakFdId || '');
           }
         } catch (error: any) {
           showToast('Failed to load transaction details', 'error');
@@ -140,6 +220,9 @@ export default function AddTransactionScreen() {
         note: note || '',
         title: note || category || 'Transaction',
         transactionDate: date.toISOString(),
+        isBroken,
+        isActive,
+        breakFdId: type === 'cash_in' && category === 'FD Break' ? breakFdId : undefined,
       };
 
       if (isEditMode) {
@@ -157,7 +240,83 @@ export default function AddTransactionScreen() {
       const errorMessage = error?.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} transaction`;
       showToast(errorMessage, 'error');
     }
-  }, [validateForm, user, amount, type, category, note, date, addTransaction, updateTransaction, showToast, router, isEditMode, params.id, source]);
+  }, [validateForm, user, amount, type, category, note, date, addTransaction, updateTransaction, showToast, router, isEditMode, params.id, source, isBroken, isActive, breakFdId]);
+
+  const handleBreakFD = useCallback(() => {
+    Alert.alert(
+      'Break Fixed Deposit',
+      'Are you sure you want to break this Fixed Deposit? This will mark this FD as broken and add a Cash In transaction of category "FD Break" for ₹' + Number(amount).toLocaleString('en-IN') + '.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Break FD',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedOriginal = {
+                amount: Number(amount),
+                type,
+                source,
+                category,
+                note: note || '',
+                title: note || category || 'Transaction',
+                transactionDate: date.toISOString(),
+                isBroken: true,
+                isActive: false,
+              };
+              await updateTransaction(params.id as string, updatedOriginal);
+
+              const cashInTx = {
+                amount: Number(amount),
+                type: 'cash_in' as const,
+                source: 'balance' as const,
+                category: 'FD Break',
+                note: `Broken FD: ${note || 'FD'}`,
+                title: `Broken FD: ${note || 'FD'}`,
+                transactionDate: new Date().toISOString(),
+                isBroken: false,
+                isActive: true,
+              };
+              await addTransaction(cashInTx);
+
+              showToast('Fixed Deposit broken successfully', 'success');
+              router.back();
+            } catch (error: any) {
+              showToast(error?.message || 'Failed to break Fixed Deposit', 'error');
+            }
+          },
+        },
+      ]
+    );
+  }, [params.id, amount, type, source, category, note, date, updateTransaction, addTransaction, showToast, router]);
+
+  const handleToggleActive = useCallback(async () => {
+    const nextActive = !isActive;
+    try {
+      const updated = {
+        amount: Number(amount),
+        type,
+        source,
+        category,
+        note: note || '',
+        title: note || category || 'Transaction',
+        transactionDate: date.toISOString(),
+        isBroken,
+        isActive: nextActive,
+      };
+      await updateTransaction(params.id as string, updated);
+      setIsActive(nextActive);
+      showToast(
+        category === 'SIP' 
+          ? `SIP successfully ${nextActive ? 'resumed' : 'stopped'}` 
+          : `EMI successfully marked as ${nextActive ? 'active' : 'completed'}`,
+        'success'
+      );
+      router.back();
+    } catch (error: any) {
+      showToast(error?.message || 'Failed to update commitment status', 'error');
+    }
+  }, [params.id, amount, type, source, category, note, date, isBroken, isActive, updateTransaction, showToast, router]);
 
   const handleDelete = useCallback(() => {
     if (!params.id) return;
@@ -333,6 +492,24 @@ export default function AddTransactionScreen() {
                   ))}
                 </ScrollView>
               )}
+              {suggestedCategory && category !== suggestedCategory && (
+                <TouchableOpacity
+                  style={[
+                    styles.suggestionCategoryChip,
+                    {
+                      backgroundColor: colors.primary[50] + '12',
+                      borderColor: colors.primary[600] + '30',
+                    },
+                  ]}
+                  onPress={() => setCategory(suggestedCategory)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="sparkles" size={12} color={colors.primary[600]} style={{ marginRight: 6 }} />
+                  <Text style={[styles.suggestionCategoryText, { color: colors.primary[600] }]}>
+                    Suggest category: <Text style={{ fontFamily: Typography.fontFamily.bold }}>{suggestedCategory}</Text> (Tap to apply)
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Date Field */}
@@ -372,6 +549,64 @@ export default function AddTransactionScreen() {
               )}
             </View>
           </View>
+
+          {/* Selector for which FD is being broken */}
+          {type === 'cash_in' && category === 'FD Break' && (
+            <View style={[styles.fieldContainer, { marginTop: Metrics.md, paddingHorizontal: Metrics.sm }]}>
+              <Text style={[styles.fieldLabel, { color: colors.gray[400], marginBottom: 8 }]}>
+                SELECT FIXED DEPOSIT TO BREAK
+              </Text>
+              {activeFds.length === 0 ? (
+                <View style={[styles.noFdsCard, { backgroundColor: colors.light.card, borderColor: colors.light.border }]}>
+                  <Ionicons name="warning-outline" size={16} color={colors.warning[600]} style={{ marginRight: 6 }} />
+                  <Text style={[styles.noFdsText, { color: colors.gray[500] }]}>No active Fixed Deposits found to break.</Text>
+                </View>
+              ) : (
+                <View style={[styles.fdsListContainer, { backgroundColor: colors.light.card, borderColor: colors.light.border }]}>
+                  {activeFds.map((fd) => {
+                    const isSelected = breakFdId === (fd._id || fd.id);
+                    return (
+                      <TouchableOpacity
+                        key={fd._id || fd.id}
+                        style={[
+                          styles.fdSelectRow,
+                          { borderBottomColor: colors.light.border },
+                          isSelected && { backgroundColor: colors.primary[50] + '20' }
+                        ]}
+                        onPress={() => {
+                          const targetId = fd._id || fd.id || '';
+                          setBreakFdId(targetId);
+                          setAmount(fd.amount.toString()); // Pre-fill amount
+                          setNote(`Broken FD: ${fd.note || fd.title || 'FD'}`); // Pre-fill note
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.fdInfoRow}>
+                          <Ionicons 
+                            name={isSelected ? "radio-button-on" : "radio-button-off"} 
+                            size={18} 
+                            color={isSelected ? colors.primary[600] : colors.gray[400]} 
+                            style={{ marginRight: Metrics.sm }}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.fdSelectTitle, { color: colors.light.text, fontFamily: isSelected ? Typography.fontFamily.semiBold : Typography.fontFamily.regular }]}>
+                              {fd.note || fd.title || 'Fixed Deposit'}
+                            </Text>
+                            <Text style={[styles.fdSelectSubtitle, { color: colors.gray[500] }]}>
+                              Date: {new Date(fd.transactionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </Text>
+                          </View>
+                          <Text style={[styles.fdSelectAmount, { color: isSelected ? colors.primary[600] : colors.light.text }]}>
+                            ₹{fd.amount.toLocaleString('en-IN')}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Source selector for investments */}
           {type === 'investment' && (
@@ -422,6 +657,30 @@ export default function AddTransactionScreen() {
                 </Text>
               </View>
             </View>
+          )}
+
+          {isEditMode && type === 'investment' && category === 'FD' && !isBroken && (
+            <Button
+              title="Break Fixed Deposit"
+              onPress={handleBreakFD}
+              variant="danger"
+              fullWidth
+              style={{ marginBottom: Metrics.sm }}
+            />
+          )}
+
+          {isEditMode && ((type === 'investment' && category === 'SIP') || (type === 'cash_out' && category === 'EMI')) && (
+            <Button
+              title={
+                category === 'SIP'
+                  ? (isActive ? 'Stop SIP' : 'Resume SIP')
+                  : (isActive ? 'Mark EMI as Completed' : 'Mark EMI as Active')
+              }
+              onPress={handleToggleActive}
+              variant="outline"
+              fullWidth
+              style={{ marginBottom: Metrics.sm }}
+            />
           )}
 
           {/* Submit Button */}
@@ -629,5 +888,55 @@ const styles = StyleSheet.create({
   suggestionText: {
     fontSize: 12,
     fontFamily: Typography.fontFamily.medium,
+  },
+  noFdsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: Metrics.borderRadius.md,
+    padding: Metrics.md,
+  },
+  noFdsText: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: Metrics.fontSizes.sm,
+  },
+  fdsListContainer: {
+    borderWidth: 1,
+    borderRadius: Metrics.borderRadius.lg,
+    overflow: 'hidden',
+  },
+  fdSelectRow: {
+    padding: Metrics.md,
+    borderBottomWidth: 1,
+  },
+  fdInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fdSelectTitle: {
+    fontSize: Metrics.fontSizes.sm,
+  },
+  fdSelectSubtitle: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+  fdSelectAmount: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: Metrics.fontSizes.sm,
+  },
+  suggestionCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: Metrics.borderRadius.md,
+    paddingHorizontal: Metrics.md,
+    paddingVertical: Metrics.xs + 2,
+    marginTop: Metrics.sm,
+    alignSelf: 'flex-start',
+  },
+  suggestionCategoryText: {
+    fontFamily: Typography.fontFamily.medium,
+    fontSize: Metrics.fontSizes.xs + 1,
   },
 });
